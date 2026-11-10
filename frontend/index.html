@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="IGoGo Application" />
+    <title>IGoGo</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+      .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+      h1 { color: #333; }
+      pre { background: #f0f0f0; padding: 15px; border-radius: 4px; overflow-x: auto; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      const { useState, useEffect } = React;
+
+      function App() {
+        const [data, setData] = useState(null);
+        const [health, setHealth] = useState(null);
+
+        useEffect(() => {
+          fetch('/api/health')
+            .then(res => res.json())
+            .then(data => setHealth(data))
+            .catch(err => console.error(err));
+
+          fetch('/api/data')
+            .then(res => res.json())
+            .then(data => setData(data))
+            .catch(err => console.error(err));
+        }, []);
+
+        return React.createElement('div', { className: 'container' }, 
+          React.createElement('h1', null, 'IGoGo Application'),
+          React.createElement('h2', null, 'Health Status'),
+          React.createElement('pre', null, JSON.stringify(health, null, 2)),
+          React.createElement('h2', null, 'API Data'),
+          React.createElement('pre', null, JSON.stringify(data, null, 2))
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(React.createElement(App));
+    </script>
+  </body>
+</html>
