@@ -9,7 +9,7 @@ RUN apk add --no-cache ca-certificates
 COPY main.go /app/main.go
 
 # Copy build tools to compile Go
-FROM golang:1.21-alpine AS builder
+FROM golang:1.26-alpine AS builder
 WORKDIR /app
 COPY main.go go.mod* ./
 RUN CGO_ENABLED=0 GOOS=linux go build -o api .

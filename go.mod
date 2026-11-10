@@ -1,3 +1,3 @@
-module igogo
+module github.com/vanorro1997-droid/IGoGo
 
-go 1.21
+go 1.26.5

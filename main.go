@@ -74,12 +74,6 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Hello from Go API"})
 }
 
-// twoGISSearchHandler proxies search requests to the 2GIS Places API.
-// The API key is read from the environment and never exposed to the client.
-//
-// Example:
-//
-//	GET /api/2gis/search?q=кафе&location=37.630866,55.752256&page_size=10
 func twoGISSearchHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
