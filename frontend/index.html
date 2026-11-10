@@ -1,52 +1,565 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta name="description" content="IGoGo Application" />
-    <title>IGoGo</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <meta name="theme-color" content="#0b7a4b" />
+    <meta name="description" content="Поиск объектов через API 2ГИС" />
+    <title>IGoGo — поиск по 2ГИС</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-      .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
-      h1 { color: #333; }
-      pre { background: #f0f0f0; padding: 15px; border-radius: 4px; overflow-x: auto; }
+      :root {
+        --bg: #f2f5f3;
+        --card: #ffffff;
+        --text: #1c2b24;
+        --muted: #61736a;
+        --accent: #0b7a4b;
+        --accent-hover: #09653e;
+        --border: #d8e2dc;
+        --error-bg: #fdecec;
+        --error-border: #f3b7b7;
+        --error-text: #9b1c1c;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        padding: 32px 16px 56px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", Roboto, Arial, sans-serif;
+        line-height: 1.45;
+      }
+
+      .container { max-width: 960px; margin: 0 auto; }
+
+      header { margin-bottom: 20px; }
+
+      h1 { margin: 0 0 6px; font-size: 30px; letter-spacing: -0.02em; }
+
+      .subtitle { margin: 0; color: var(--muted); }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 22px;
+        box-shadow: 0 8px 24px rgba(18, 51, 36, 0.06);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+      .field-wide { grid-column: 1 / -1; }
+
+      .field > span { font-size: 14px; font-weight: 600; }
+
+      .field em { color: var(--accent); font-style: normal; }
+
+      .location-row { display: flex; gap: 8px; }
+
+      .location-row input { flex: 1; min-width: 0; }
+
+      .location-row button { white-space: nowrap; }
+
+      input, select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--text);
+        font: inherit;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+
+      input:focus, select:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(11, 122, 75, 0.14);
+      }
+
+      small { color: var(--muted); font-size: 12px; }
+
+      .actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+      button {
+        padding: 11px 20px;
+        border: 0;
+        border-radius: 8px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s, opacity 0.15s;
+      }
+
+      button[type="submit"] { background: var(--accent); color: #fff; }
+      button[type="submit"]:hover:not(:disabled) { background: var(--accent-hover); }
+      button[type="submit"]:disabled { opacity: 0.6; cursor: progress; }
+
+      button[type="button"] { background: #e8eeea; color: var(--text); }
+      button[type="button"]:hover { background: #dce6e0; }
+
+      .hint { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
+
+      .status { margin-top: 18px; color: var(--muted); font-size: 14px; }
+
+      .error {
+        margin-top: 18px;
+        padding: 12px 14px;
+        border: 1px solid var(--error-border);
+        border-radius: 10px;
+        background: var(--error-bg);
+        color: var(--error-text);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      .results { margin-top: 24px; }
+
+      .results-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .results-head h2 { margin: 0; font-size: 20px; }
+      .results-head span { color: var(--muted); font-size: 14px; }
+
+      .items { display: grid; gap: 10px; }
+
+      .item {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px 16px;
+      }
+
+      .item h3 { margin: 0 0 6px; font-size: 17px; }
+
+      .item p { margin: 0; color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+
+      .empty {
+        padding: 18px;
+        border: 1px dashed var(--border);
+        border-radius: 12px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      details { margin-top: 16px; }
+
+      summary {
+        cursor: pointer;
+        color: var(--accent);
+        font-weight: 600;
+        user-select: none;
+      }
+
+      pre {
+        margin: 10px 0 0;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #f7faf8;
+        overflow: auto;
+        max-height: 420px;
+        font-size: 12.5px;
+      }
+
+      [hidden] { display: none !important; }
+
+      @media (max-width: 640px) {
+        body { padding-top: 20px; }
+        .grid { grid-template-columns: 1fr; }
+        .field-wide { grid-column: auto; }
+      }
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <main class="container">
+      <header>
+        <h1>Поиск по 2ГИС</h1>
+        <p class="subtitle">
+          Введите параметры запроса к Places API. API-ключ хранится на сервере и в браузер не передаётся.
+        </p>
+      </header>
+
+      <form id="search-form" class="card" novalidate>
+        <div class="grid">
+          <label class="field field-wide">
+            <span>Что искать <em>*</em></span>
+            <input name="q" placeholder="Например: кафе" autocomplete="off" required />
+          </label>
+
+          <div class="field field-wide">
+            <span>Ваше местоположение</span>
+            <div class="location-row">
+              <input
+                name="location"
+                id="location-input"
+                placeholder="Определяется автоматически"
+                autocomplete="off"
+              />
+              <button type="button" id="locate-button">Определить</button>
+            </div>
+            <small>
+              Координаты определяются автоматически. Можно ввести вручную: долгота, широта.
+            </small>
+          </div>
+
+          <label class="field">
+            <span>Сортировка (sort)</span>
+            <select name="sort">
+              <option value="distance" selected>По расстоянию</option>
+              <option value="">По релевантности</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Страница (page)</span>
+            <input name="page" type="number" min="1" step="1" value="1" />
+          </label>
+
+          <label class="field">
+            <span>На странице (page_size)</span>
+            <input name="page_size" type="number" min="1" max="50" step="1" value="10" />
+          </label>
+
+          <label class="field">
+            <span>Радиус поиска, м (radius)</span>
+            <input name="radius" type="number" min="1" step="1" value="1000" />
+          </label>
+
+          <label class="field">
+            <span>Язык (locale)</span>
+            <select name="locale">
+              <option value="ru_RU">Русский</option>
+              <option value="en_US">English</option>
+            </select>
+          </label>
+
+          <label class="field field-wide">
+            <span>Дополнительные поля (fields)</span>
+            <input name="fields" value="items.point,items.address" autocomplete="off" />
+            <small>Через запятую, например: items.point,items.address,items.contact_groups</small>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button type="submit" id="submit-button">Найти</button>
+          <button type="button" id="reset-button">Сбросить</button>
+        </div>
+
+        <p class="hint">
+          Поиск выполняется рядом с вашим местоположением. Если геолокация недоступна, введите координаты вручную.
+        </p>
+      </form>
+
+      <p id="status" class="status" hidden></p>
+      <div id="error" class="error" hidden></div>
+
+      <section id="results" class="results" hidden>
+        <div class="results-head">
+          <h2>Результаты</h2>
+          <span id="total"></span>
+        </div>
+        <div id="items" class="items"></div>
+        <details>
+          <summary>Показать JSON ответа</summary>
+          <pre id="json"></pre>
+        </details>
+      </section>
+    </main>
+
     <script>
-      const { useState, useEffect } = React;
+      (function () {
+        const form = document.getElementById('search-form');
+        const submitButton = document.getElementById('submit-button');
+        const resetButton = document.getElementById('reset-button');
+        const locateButton = document.getElementById('locate-button');
+        const locationInput = document.getElementById('location-input');
+        const statusEl = document.getElementById('status');
+        const errorEl = document.getElementById('error');
+        const resultsEl = document.getElementById('results');
+        const itemsEl = document.getElementById('items');
+        const totalEl = document.getElementById('total');
+        const jsonEl = document.getElementById('json');
 
-      function App() {
-        const [data, setData] = useState(null);
-        const [health, setHealth] = useState(null);
+        let currentController = null;
+        let locatingPromise = null;
 
-        useEffect(() => {
-          fetch('/api/health')
-            .then(res => res.json())
-            .then(data => setHealth(data))
-            .catch(err => console.error(err));
+        locateButton.addEventListener('click', function () {
+          locateUser(true);
+        });
 
-          fetch('/api/data')
-            .then(res => res.json())
-            .then(data => setData(data))
-            .catch(err => console.error(err));
-        }, []);
+        // Detect the user's location on page load.
+        locateUser(false);
 
-        return React.createElement('div', { className: 'container' }, 
-          React.createElement('h1', null, 'IGoGo Application'),
-          React.createElement('h2', null, 'Health Status'),
-          React.createElement('pre', null, JSON.stringify(health, null, 2)),
-          React.createElement('h2', null, 'API Data'),
-          React.createElement('pre', null, JSON.stringify(data, null, 2))
-        );
-      }
+        form.addEventListener('submit', async function (event) {
+          event.preventDefault();
 
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      root.render(React.createElement(App));
+          const params = new URLSearchParams();
+          const formData = new FormData(form);
+
+          for (const [name, value] of formData.entries()) {
+            const trimmed = String(value).trim();
+            if (trimmed !== '') {
+              params.set(name, trimmed);
+            }
+          }
+
+          if (!params.get('q')) {
+            showError('Укажите, что искать.');
+            return;
+          }
+
+          if (!params.get('location')) {
+            setStatus('Определяем местоположение…');
+            const location = await locateUser(true);
+            if (!location) {
+              showError(
+                'Не удалось получить местоположение. Разрешите доступ к геолокации ' +
+                'или введите координаты вручную.'
+              );
+              return;
+            }
+            params.set('location', location);
+          }
+
+          if (currentController) {
+            currentController.abort();
+          }
+
+          const controller = new AbortController();
+          currentController = controller;
+
+          clearOutput();
+          setLoading(true);
+          setStatus('Запрос к 2ГИС…');
+
+          try {
+            const response = await fetch('/api/2gis/search?' + params.toString(), {
+              signal: controller.signal,
+              headers: { Accept: 'application/json' },
+            });
+
+            const text = await response.text();
+            let payload = null;
+
+            try {
+              payload = JSON.parse(text);
+            } catch (parseError) {
+              payload = null;
+            }
+
+            if (!response.ok) {
+              const fallback = text || ('HTTP ' + response.status);
+              const message = extractError(payload, fallback);
+              showError(response.status + ': ' + message);
+              if (payload) {
+                renderRaw(payload);
+              }
+              return;
+            }
+
+            if (!payload) {
+              showError('Сервер вернул не JSON. Проверьте, что API-ключ 2ГИС настроен.');
+              return;
+            }
+
+            renderResults(payload);
+          } catch (error) {
+            if (error.name === 'AbortError') {
+              return;
+            }
+            showError('Не удалось выполнить запрос: ' + error.message);
+          } finally {
+            if (currentController === controller) {
+              currentController = null;
+              setLoading(false);
+              setStatus('');
+            }
+          }
+        });
+
+        resetButton.addEventListener('click', function () {
+          if (currentController) {
+            currentController.abort();
+            currentController = null;
+          }
+          form.reset();
+          clearOutput();
+          setStatus('');
+          setLoading(false);
+          form.elements.q.focus();
+          locateUser(false);
+        });
+
+        function locateUser(showErrors) {
+          if (!navigator.geolocation) {
+            const message = 'Браузер не поддерживает геолокацию. Введите координаты вручную.';
+            if (showErrors) {
+              showError(message);
+            } else {
+              setStatus(message);
+            }
+            return Promise.resolve(null);
+          }
+
+          if (locatingPromise) {
+            return locatingPromise;
+          }
+
+          setStatus('Определяем местоположение…');
+
+          locatingPromise = new Promise(function (resolve) {
+            navigator.geolocation.getCurrentPosition(
+              function (position) {
+                const coords = position.coords;
+                const location = coords.longitude.toFixed(6) + ',' + coords.latitude.toFixed(6);
+                locationInput.value = location;
+                setStatus('Местоположение определено: ' + location);
+                resolve(location);
+              },
+              function (error) {
+                const message = geoErrorMessage(error);
+                if (showErrors) {
+                  showError(message + ' Введите координаты вручную.');
+                } else {
+                  setStatus(message + ' Введите координаты вручную или нажмите «Определить».');
+                }
+                resolve(null);
+              },
+              { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+            );
+          });
+
+          const promise = locatingPromise;
+          promise.then(function () {
+            if (locatingPromise === promise) {
+              locatingPromise = null;
+            }
+          });
+
+          return promise;
+        }
+
+        function geoErrorMessage(error) {
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              return 'Доступ к геолокации запрещён.';
+            case error.POSITION_UNAVAILABLE:
+              return 'Не удалось определить местоположение.';
+            case error.TIMEOUT:
+              return 'Истекло время ожидания геолокации.';
+            default:
+              return 'Не удалось определить местоположение.';
+          }
+        }
+
+        function setLoading(loading) {
+          submitButton.disabled = loading;
+          submitButton.textContent = loading ? 'Ищу…' : 'Найти';
+        }
+
+        function setStatus(message) {
+          statusEl.textContent = message;
+          statusEl.hidden = message === '';
+        }
+
+        function clearOutput() {
+          errorEl.hidden = true;
+          errorEl.textContent = '';
+          resultsEl.hidden = true;
+          itemsEl.replaceChildren();
+          totalEl.textContent = '';
+          jsonEl.textContent = '';
+        }
+
+        function showError(message) {
+          setStatus('');
+          errorEl.textContent = message;
+          errorEl.hidden = false;
+        }
+
+        function extractError(payload, fallback) {
+          if (payload && payload.meta && payload.meta.error && payload.meta.error.message) {
+            return payload.meta.error.message;
+          }
+          if (payload && payload.error) {
+            return typeof payload.error === 'string' ? payload.error : JSON.stringify(payload.error);
+          }
+          return fallback;
+        }
+
+        function renderResults(payload) {
+          const result = payload.result || {};
+          const items = Array.isArray(result.items) ? result.items : [];
+          const total = typeof result.total === 'number' ? result.total : items.length;
+
+          totalEl.textContent = 'Найдено: ' + total;
+          itemsEl.replaceChildren();
+
+          if (items.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'empty';
+            empty.textContent = 'Ничего не найдено. Попробуйте изменить запрос или геоограничение.';
+            itemsEl.appendChild(empty);
+          } else {
+            items.forEach(function (item) {
+              itemsEl.appendChild(createItemCard(item));
+            });
+          }
+
+          renderRaw(payload);
+          resultsEl.hidden = false;
+        }
+
+        function createItemCard(item) {
+          const card = document.createElement('article');
+          card.className = 'item';
+
+          const title = document.createElement('h3');
+          title.textContent = item.name || 'Без названия';
+          card.appendChild(title);
+
+          const details = [];
+
+          if (item.address_name) {
+            details.push(item.address_name);
+          }
+          if (item.type) {
+            details.push('тип: ' + item.type);
+          }
+          if (item.id) {
+            details.push('ID: ' + item.id);
+          }
+          if (item.point && typeof item.point.lat === 'number' && typeof item.point.lon === 'number') {
+            details.push('координаты: ' + item.point.lat + ', ' + item.point.lon);
+          }
+
+          if (details.length > 0) {
+            const description = document.createElement('p');
+            description.textContent = details.join(' · ');
+            card.appendChild(description);
+          }
+
+          return card;
+        }
+
+        function renderRaw(payload) {
+          jsonEl.textContent = JSON.stringify(payload, null, 2);
+          resultsEl.hidden = false;
+        }
+      })();
     </script>
   </body>
 </html>

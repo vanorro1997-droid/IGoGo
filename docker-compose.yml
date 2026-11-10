@@ -30,6 +30,7 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_NAME: igogo
+      TWOGIS_API_KEY: ${TWOGIS_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
