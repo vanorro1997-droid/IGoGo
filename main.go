@@ -5,12 +5,17 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	weather "github.com/vanorro1997-droid/IGoGo/internal/providers/weather"
 )
 
 func main() {
 	http.HandleFunc("/api/health", healthHandler)
 	http.HandleFunc("/api/data", dataHandler)
 	http.HandleFunc("/", rootHandler)
+
+	// http.HandleFunc("/api/weather", makeWeatherHandler(weather.NewOpenMeteo()))
+	http.HandleFunc("/api/weather", makeWeatherHandler(weather.NewMockProvider())) //пока что затычка, так как open weather без впн не работает
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -38,4 +43,3 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "Hello from Go API"})
 }
-
