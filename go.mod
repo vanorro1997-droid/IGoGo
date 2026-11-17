@@ -1,9 +1,12 @@
-
 module github.com/vanorro1997-droid/IGoGo
 
 go 1.26.5
 
-require github.com/gin-gonic/gin v1.12.0
+require (
+	github.com/gin-gonic/gin v1.12.0
+	github.com/joho/godotenv v1.5.1
+	github.com/zendev-sh/goai v0.11.0
+)
 
 require (
 	github.com/bytedance/gopkg v0.1.3 // indirect
