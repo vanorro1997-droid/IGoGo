@@ -31,12 +31,12 @@ func (m *MockStationProvider) SearchNearby(ctx context.Context, lat, lon float64
 	}
 
 	return &StationSearchResult{
-		Stations: nearby,
-	}, &ResponseMetadata{
-		Source:    "mock",
-		Timestamp: time.Now().UTC(),
-		IsReal:    false,
-	}, nil
+			Stations: nearby,
+		}, &ResponseMetadata{
+			Source:    "mock",
+			Timestamp: time.Now().UTC(),
+			IsReal:    false,
+		}, nil
 }
 
 // GetStationByID возвращает станцию по ID
@@ -50,7 +50,7 @@ func (m *MockStationProvider) GetStationByID(ctx context.Context, externalID str
 			}, nil
 		}
 	}
-	return nil, nil, fmt.Errorf("station not found: %s", externalID)
+	return nil, nil, fmt.Errorf("%w: %s", ErrStationNotFound, externalID)
 }
 
 // Name возвращает название провайдера
@@ -79,12 +79,12 @@ func (m *MockTimetableProvider) SearchRoutes(
 	routes := generateTestRoutes(from, to, date, earliestDeparture, tz)
 
 	return &RoutesSearchResult{
-		Routes: routes,
-	}, &ResponseMetadata{
-		Source:    "mock",
-		Timestamp: time.Now().UTC(),
-		IsReal:    false,
-	}, nil
+			Routes: routes,
+		}, &ResponseMetadata{
+			Source:    "mock",
+			Timestamp: time.Now().UTC(),
+			IsReal:    false,
+		}, nil
 }
 
 // SupportsTransport проверяет поддержку транспорта в регионе

@@ -32,7 +32,8 @@ type Result struct {
 
 // Client — клиент Workers AI.
 type Client struct {
-	cfg Config
+	cfg        Config
+	httpClient *http.Client
 }
 
 // NewFromEnv читает .env (если есть) и переменные окружения,
@@ -68,6 +69,9 @@ func New(cfg Config) (*Client, error) {
 	if cfg.Timeout == 0 {
 		cfg.Timeout = 60 * time.Second
 	}
+	if cfg.Timeout < 0 {
+		return nil, fmt.Errorf("llm: Timeout должен быть положительным")
+	}
 
 	// Транспорт: прокси + увеличенный TLS-таймаут (помогает из RU).
 	transport := &http.Transport{
@@ -76,15 +80,21 @@ func New(cfg Config) (*Client, error) {
 	}
 	if cfg.Proxy != "" {
 		proxyURL, err := url.Parse(cfg.Proxy)
-		if err != nil {
-			return nil, fmt.Errorf("llm: некорректный адрес прокси %q: %w", cfg.Proxy, err)
+		if err != nil || proxyURL.Host == "" {
+			return nil, fmt.Errorf("llm: некорректный адрес прокси")
+		}
+		switch proxyURL.Scheme {
+		case "http", "https", "socks5", "socks5h":
+		default:
+			return nil, fmt.Errorf("llm: неподдерживаемый протокол прокси")
 		}
 		transport.Proxy = http.ProxyURL(proxyURL)
 	}
-	// goai использует http.DefaultClient → подменяем транспорт глобально.
-	http.DefaultTransport = transport
 
-	return &Client{cfg: cfg}, nil
+	return &Client{
+		cfg:        cfg,
+		httpClient: &http.Client{Transport: transport, Timeout: cfg.Timeout},
+	}, nil
 }
 
 // SystemPrompt возвращает текущий системный промпт.
@@ -106,12 +116,11 @@ func (c *Client) AskCtx(parent context.Context, prompt string) (string, error) {
 	model := cloudflare.Chat(c.cfg.Model,
 		cloudflare.WithAPIKey(c.cfg.APIKey),
 		cloudflare.WithAccountID(c.cfg.AccountID),
+		cloudflare.WithHTTPClient(c.httpClient),
 	)
 
 	opts := make([]goai.Option, 0, 2)
 	if c.cfg.SystemPrompt != "" {
-		// Если в вашей версии goai опции WithSystem нет —
-		// замените на goai.WithSystemPrompt(...) или на префикс в prompt (см. ниже).
 		opts = append(opts, goai.WithSystem(c.cfg.SystemPrompt))
 	}
 	opts = append(opts, goai.WithPrompt(prompt))
@@ -140,19 +149,18 @@ func (c *Client) AskAsyncCtx(parent context.Context, prompt string) <-chan Resul
 	return ch
 }
 
-
 /*
 Используется бесплатный API CLOUDFLARE
 https://dash.cloudflare.com/04ac02c5282e3ea989b182da3b025de0/ai/workers-ai/api-quick-start
 регистрация бесплатная
-но для использования API нужен прокси клиент типа v2reyN / Happ 
+но для использования API нужен прокси клиент типа v2reyN / Happ
 (из-за ограниичениия трафика к CLOUDFLARE коробочками у провайдеров)
 без прокси падает ошибка timeout
 
 
 ├── main.go
 ├── .env
-└── llm/
+└── internal/providers/llm/
     └── llm.go       ← пакет
 
 
@@ -168,7 +176,7 @@ CLOUDFLARE_SYSTEM_PROMPT=Ты — лаконичный технический а
 
 
 
-пример использования в main.go
+пример использования (import "github.com/vanorro1997-droid/IGoGo/internal/providers/llm")
 
 func main() {
 	client, err := llm.NewFromEnv()
