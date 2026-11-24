@@ -20,6 +20,10 @@ func NewOpenMeteo() *OpenMeteo {
 	return &OpenMeteo{
 		client: &http.Client{
 			Timeout: 10 * time.Second,
+			Transport: &http.Transport{
+				// Эта строка заставляет Go читать HTTP_PROXY и HTTPS_PROXY из окружения (.env)
+				Proxy: http.ProxyFromEnvironment,
+			},
 		},
 		baseURL: "https://api.open-meteo.com/v1/forecast",
 	}
