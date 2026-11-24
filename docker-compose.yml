@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:15-alpine
+    # Pin the multi-platform index; Docker selects the native Linux architecture.
+    # Startup, registry overrides and image updates: docs/docker.md.
+    image: ${POSTGRES_IMAGE:-public.ecr.aws/docker/library/postgres:15.20-alpine3.23@sha256:83bdbdd781076b1543709883a93d995b53e682b078ea30e3cea012856732d1e5}
     container_name: igogo-postgres
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
@@ -21,6 +23,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        GO_IMAGE: ${GO_IMAGE:-public.ecr.aws/docker/library/golang:1.26.5-alpine3.23@sha256:622e56dbc11a8cfe87cafa2331e9a201877271cbff918af53d3be315f3da88cc}
+        ALPINE_IMAGE: ${ALPINE_IMAGE:-public.ecr.aws/docker/library/alpine:3.23.8@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2}
     container_name: igogo-app
     ports:
       - "${HTTP_PORT:-${PORT:-8081}}:${HTTP_PORT:-${PORT:-8081}}"
