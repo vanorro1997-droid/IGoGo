@@ -6,23 +6,32 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/joho/godotenv"
 	weather "github.com/vanorro1997-droid/IGoGo/internal/providers/weather"
 )
 
+func init() {
+	// Загружаем переменные из .env при старте приложения
+	if err := godotenv.Load(); err != nil {
+		log.Println("Файл .env не найден, используются системные переменные окружения")
+	}
+}
+
 func main() {
+	// Теперь провайдер будет использовать прокси из .env
+	weatherProvider := weather.NewOpenMeteo()
+
 	http.HandleFunc("/api/health", healthHandler)
 	http.HandleFunc("/api/data", dataHandler)
+	http.HandleFunc("/api/weather", makeWeatherHandler(weatherProvider))
 	http.HandleFunc("/", rootHandler)
-
-	// http.HandleFunc("/api/weather", makeWeatherHandler(weather.NewOpenMeteo()))
-	http.HandleFunc("/api/weather", makeWeatherHandler(weather.NewMockProvider())) //пока что затычка, так как open weather без впн не работает
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	log.Printf("Server starting on port %s", port)
+	log.Printf("Server starting on port %s (Weather: real, proxy from .env)", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
