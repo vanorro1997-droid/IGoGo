@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -17,17 +18,17 @@ import (
 
 const (
 	twoGISItemsURL = "https://catalog.api.2gis.com/3.0/items"
-	twoGISKeyEnv   = "3706770-5041-4b26-b945-a63007d216bf"
+	twoGISKeyEnv   = "TWOGIS_API_KEY"
 	// twoGISAPIKey is a fallback for local runs. Prefer the TWOGIS_API_KEY
 	// environment variable and do not commit real keys to source control.
 	twoGISAPIKey = "f3706770-5041-4b26-b945-a63007d216bf"
 
 	weatherAPIURL    = "https://api.weatherapi.com/v1/current.json"
-	weatherAPIKeyEnv = "d077351def0541169d6171342261011"
+	weatherAPIKeyEnv = "WEATHERAPI_KEY"
 	weatherAPILang   = "ru"
-	// weatherAPIKey is a fallback for local runs. Paste your WeatherAPI key
-	// here or set the WEATHERAPI_KEY environment variable.
-	weatherAPIKey = ""
+	// weatherAPIKey is a fallback for local runs. Prefer the WEATHERAPI_KEY
+	// environment variable and do not commit real keys to source control.
+	weatherAPIKey = "d077351def0541169d6171342261011"
 
 	maxResponseSize = 5 << 20 // 5 MB
 )
@@ -240,10 +241,26 @@ func (s *apiServer) twoGISSearchHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// weatherLocation converts the client's "longitude,latitude" (the same format
+// used by /api/2gis/search) to WeatherAPI's "latitude,longitude". Non-numeric
+// values such as city names are passed through unchanged.
+func weatherLocation(location string) string {
+	parts := strings.Split(location, ",")
+	if len(parts) != 2 {
+		return location
+	}
+	lon, lonErr := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
+	lat, latErr := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
+	if lonErr != nil || latErr != nil {
+		return location
+	}
+	return fmt.Sprintf("%g,%g", lat, lon)
+}
+
 // weatherHandler returns current weather at the given location via WeatherAPI.
 // The API key is read from the environment and never exposed to the client.
 //
-// Example:
+// Example (client sends longitude,latitude):
 //
 //	GET /api/weather?location=37.630866,55.752256
 func (s *apiServer) weatherHandler(w http.ResponseWriter, r *http.Request) {
@@ -272,7 +289,7 @@ func (s *apiServer) weatherHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Only forward known parameters, so the client cannot override the key.
 	params := url.Values{}
-	params.Set("q", location)
+	params.Set("q", weatherLocation(location))
 	params.Set("lang", weatherAPILang)
 	params.Set("aqi", "no")
 	params.Set("key", key)

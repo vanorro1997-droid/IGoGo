@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b7a4b" />
+    <meta name="description" content="Вход и регистрация в IGoGo" />
+    <title>IGoGo — вход и регистрация</title>
+    <style>
+      :root {
+        --bg: #f2f5f3;
+        --card: #ffffff;
+        --text: #1c2b24;
+        --muted: #61736a;
+        --accent: #0b7a4b;
+        --accent-hover: #09653e;
+        --border: #d8e2dc;
+        --error-bg: #fdecec;
+        --error-border: #f3b7b7;
+        --error-text: #9b1c1c;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding: 40px 16px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", Roboto, Arial, sans-serif;
+        line-height: 1.45;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .auth-wrapper { width: 100%; max-width: 440px; }
+
+      .brand {
+        text-align: center;
+        margin-bottom: 22px;
+      }
+
+      .brand h1 {
+        margin: 0 0 6px;
+        font-size: 30px;
+        letter-spacing: -0.02em;
+      }
+
+      .brand p { margin: 0; color: var(--muted); }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 24px;
+        box-shadow: 0 8px 24px rgba(18, 51, 36, 0.06);
+      }
+
+      .tabs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 20px;
+      }
+
+      .tab {
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--muted);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .tab.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+      .field > span { font-size: 14px; font-weight: 600; }
+
+      input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--text);
+        font: inherit;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+
+      input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(11, 122, 75, 0.14);
+      }
+
+      small { color: var(--muted); font-size: 12px; }
+
+      button.submit {
+        width: 100%;
+        margin-top: 6px;
+        padding: 12px 18px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button.submit:hover:not(:disabled) { background: var(--accent-hover); }
+      button.submit:disabled { opacity: 0.6; cursor: progress; }
+
+      .status {
+        margin: 14px 0 0;
+        padding: 11px 13px;
+        border-radius: 10px;
+        font-size: 14px;
+      }
+
+      .status.error {
+        border: 1px solid var(--error-border);
+        background: var(--error-bg);
+        color: var(--error-text);
+      }
+
+      .status.ok {
+        border: 1px solid var(--border);
+        background: #f1f8f4;
+        color: var(--accent);
+      }
+
+      .notice {
+        margin-bottom: 16px;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #f1f8f4;
+        font-size: 14px;
+      }
+
+      .notice a, .links a { color: var(--accent); font-weight: 600; }
+
+      .links {
+        margin-top: 16px;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 13px;
+      }
+
+      .links button {
+        border: 0;
+        background: none;
+        padding: 0;
+        color: var(--muted);
+        font: inherit;
+        cursor: pointer;
+        text-decoration: underline;
+      }
+
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main class="auth-wrapper">
+      <div class="brand">
+        <h1>IGoGo</h1>
+        <p>Войдите, чтобы искать места и смотреть погоду</p>
+      </div>
+
+      <div id="already" class="notice" hidden>
+        Вы уже вошли. <a href="/">Перейти к поиску</a>
+        · <button type="button" id="logout-inline">Выйти</button>
+      </div>
+
+      <section class="card">
+        <div class="tabs">
+          <button type="button" id="tab-login" class="tab active">Вход</button>
+          <button type="button" id="tab-register" class="tab">Регистрация</button>
+        </div>
+
+        <form id="auth-form" novalidate>
+          <label class="field">
+            <span>Email</span>
+            <input id="email" name="email" type="email" autocomplete="username" placeholder="user@example.com" required />
+          </label>
+
+          <label class="field">
+            <span>Пароль</span>
+            <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Не менее 8 символов" required />
+          </label>
+
+          <label class="field" id="name-field" hidden>
+            <span>Имя</span>
+            <input id="display-name" name="display_name" type="text" autocomplete="name" placeholder="Необязательно" />
+          </label>
+
+          <button type="submit" id="submit" class="submit">Войти</button>
+          <p id="status" class="status" hidden></p>
+        </form>
+
+        <div class="links">
+          <a href="/">← Вернуться к поиску</a>
+          <button type="button" id="clear-token">Забыть токен</button>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        const TOKEN_KEY = 'igogo_token';
+        const form = document.getElementById('auth-form');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const nameInput = document.getElementById('display-name');
+        const nameField = document.getElementById('name-field');
+        const statusEl = document.getElementById('status');
+        const submitButton = document.getElementById('submit');
+        const tabLogin = document.getElementById('tab-login');
+        const tabRegister = document.getElementById('tab-register');
+        const alreadyEl = document.getElementById('already');
+        const logoutInline = document.getElementById('logout-inline');
+        const clearToken = document.getElementById('clear-token');
+
+        let mode = 'login';
+
+        function getToken() {
+          return localStorage.getItem(TOKEN_KEY) || '';
+        }
+
+        function setStatus(message, kind) {
+          statusEl.textContent = message || '';
+          statusEl.className = 'status' + (kind ? ' ' + kind : '');
+          statusEl.hidden = !message;
+        }
+
+        function setMode(next) {
+          mode = next;
+          const register = mode === 'register';
+          tabLogin.classList.toggle('active', !register);
+          tabRegister.classList.toggle('active', register);
+          nameField.hidden = !register;
+          nameInput.required = false;
+          passwordInput.autocomplete = register ? 'new-password' : 'current-password';
+          submitButton.textContent = register ? 'Создать аккаунт' : 'Войти';
+          setStatus('');
+        }
+
+        function errorMessage(payload, fallback) {
+          if (payload && payload.error) {
+            return typeof payload.error === 'string' ? payload.error : JSON.stringify(payload.error);
+          }
+          return fallback || 'Ошибка запроса';
+        }
+
+        tabLogin.addEventListener('click', function () { setMode('login'); });
+        tabRegister.addEventListener('click', function () { setMode('register'); });
+
+        form.addEventListener('submit', async function (event) {
+          event.preventDefault();
+
+          const email = emailInput.value.trim();
+          const password = passwordInput.value;
+          if (!email || !password) {
+            setStatus('Укажите email и пароль.', 'error');
+            return;
+          }
+          if (mode === 'register' && password.length < 8) {
+            setStatus('Пароль должен быть не короче 8 символов.', 'error');
+            return;
+          }
+
+          const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
+          const body = { email: email, password: password };
+          if (mode === 'register') {
+            const name = nameInput.value.trim();
+            if (name) {
+              body.display_name = name;
+            }
+          }
+
+          setStatus('Отправляем запрос…', '');
+          submitButton.disabled = true;
+          submitButton.textContent = mode === 'register' ? 'Создаём аккаунт…' : 'Входим…';
+
+          try {
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+            const text = await response.text();
+            let payload = null;
+            try {
+              payload = JSON.parse(text);
+            } catch (parseError) {
+              payload = null;
+            }
+
+            if (!response.ok || !payload || !payload.token) {
+              setStatus(errorMessage(payload, text || ('HTTP ' + response.status)), 'error');
+              return;
+            }
+
+            localStorage.setItem(TOKEN_KEY, payload.token);
+            setStatus('Готово, перенаправляем…', 'ok');
+            location.assign('/');
+          } catch (error) {
+            setStatus('Не удалось выполнить запрос: ' + error.message, 'error');
+          } finally {
+            submitButton.disabled = false;
+            setMode(mode);
+          }
+        });
+
+        async function logout() {
+          const token = getToken();
+          if (token) {
+            try {
+              await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: { Authorization: 'Bearer ' + token },
+              });
+            } catch (error) {
+              // Локальный токен удаляем в любом случае.
+            }
+          }
+          localStorage.removeItem(TOKEN_KEY);
+          alreadyEl.hidden = true;
+          setMode('login');
+          setStatus('Вы вышли. Войдите снова или зарегистрируйтесь.', 'ok');
+        }
+
+        logoutInline.addEventListener('click', logout);
+        clearToken.addEventListener('click', function () {
+          localStorage.removeItem(TOKEN_KEY);
+          alreadyEl.hidden = true;
+          setStatus('Локальный токен удалён.', 'ok');
+        });
+
+        (async function checkExistingToken() {
+          const token = getToken();
+          if (!token) {
+            return;
+          }
+          try {
+            const response = await fetch('/api/me', {
+              headers: { Authorization: 'Bearer ' + token },
+            });
+            if (response.ok) {
+              const data = await response.json();
+              alreadyEl.hidden = false;
+              emailInput.value = data.user.email;
+            } else {
+              localStorage.removeItem(TOKEN_KEY);
+            }
+          } catch (error) {
+            // Офлайн: оставшимся токеном воспользуется основная страница.
+          }
+        })();
+      })();
+    </script>
+  </body>
+</html>

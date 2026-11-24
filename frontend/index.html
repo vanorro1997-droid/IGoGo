@@ -33,7 +33,70 @@
 
       .container { max-width: 960px; margin: 0 auto; }
 
-      header { margin-bottom: 20px; }
+      header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .logout-button { padding: 8px 14px; font-size: 14px; }
+
+      .header-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+      .history-card { margin-top: 24px; }
+
+      .history-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .history-head h2 { margin: 0; font-size: 20px; }
+
+      .history-controls { display: flex; align-items: center; gap: 8px; }
+      .history-controls select { width: auto; padding: 8px 10px; }
+      .history-controls button { padding: 8px 14px; font-size: 14px; }
+
+      .history-status { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+
+      .history-table-wrap { margin-top: 14px; overflow-x: auto; }
+
+      .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+      .history-table th,
+      .history-table td {
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .history-table th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+      .history-table td { overflow-wrap: anywhere; }
+      .history-table tbody tr:last-child td { border-bottom: 0; }
+
+      .history-params {
+        max-width: 260px;
+        max-height: 160px;
+        margin: 0;
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+
+      .status-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .status-badge.ok { background: #e6f4ec; color: var(--accent); }
+      .status-badge.bad { background: var(--error-bg); color: var(--error-text); }
 
       h1 { margin: 0 0 6px; font-size: 30px; letter-spacing: -0.02em; }
 
@@ -176,9 +239,6 @@
 
       [hidden] { display: none !important; }
 
-      .auth-card { margin-bottom: 18px; }
-      .auth-card h2 { margin: 0 0 14px; font-size: 20px; }
-
       .weather-card h2 { margin: 0 0 14px; font-size: 20px; }
 
       .weather-main {
@@ -225,36 +285,18 @@
   <body>
     <main class="container">
       <header>
-        <h1>Поиск по 2ГИС</h1>
-        <p class="subtitle">
-          Поиск мест по Places API 2ГИС и текущая погода по вашему местоположению (WeatherAPI).
-          API-ключи хранятся на сервере и в браузер не передаются.
-        </p>
+        <div>
+          <h1>Поиск по 2ГИС</h1>
+          <p class="subtitle">
+            Поиск мест по Places API 2ГИС и текущая погода по вашему местоположению (WeatherAPI).
+            API-ключи хранятся на сервере и в браузер не передаются.
+          </p>
+        </div>
+        <div class="header-actions">
+          <button type="button" id="history-button">История</button>
+          <button type="button" id="logout-button" class="logout-button">Выйти</button>
+        </div>
       </header>
-
-      <section id="auth" class="card auth-card">
-        <h2>Вход / регистрация</h2>
-        <div class="grid">
-          <label class="field">
-            <span>Email</span>
-            <input id="auth-email" type="email" autocomplete="username" placeholder="user@example.com" />
-          </label>
-          <label class="field">
-            <span>Пароль</span>
-            <input id="auth-password" type="password" autocomplete="current-password" placeholder="Не менее 8 символов" />
-          </label>
-          <label class="field field-wide">
-            <span>Имя (только при регистрации)</span>
-            <input id="auth-name" type="text" autocomplete="name" placeholder="Необязательно" />
-          </label>
-        </div>
-        <div class="actions">
-          <button type="button" id="login-button">Войти</button>
-          <button type="button" id="register-button">Регистрация</button>
-          <button type="button" id="logout-button" hidden>Выйти</button>
-        </div>
-        <p id="auth-status" class="hint"></p>
-      </section>
 
       <section id="weather" class="card weather-card" hidden>
         <h2>Погода сейчас</h2>
@@ -353,6 +395,39 @@
           <pre id="json"></pre>
         </details>
       </section>
+
+      <section id="history" class="card history-card" hidden>
+        <div class="history-head">
+          <h2>История запросов</h2>
+          <div class="history-controls">
+            <select id="history-limit" aria-label="Количество записей">
+              <option value="20">20 записей</option>
+              <option value="50" selected>50 записей</option>
+              <option value="100">100 записей</option>
+              <option value="200">200 записей</option>
+            </select>
+            <button type="button" id="history-refresh">Обновить</button>
+          </div>
+        </div>
+        <p id="history-status" class="history-status" hidden></p>
+        <div id="history-empty" class="empty" hidden>Запросов пока нет.</div>
+        <div id="history-table-wrap" class="history-table-wrap" hidden>
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Дата</th>
+                <th>Метод</th>
+                <th>Путь</th>
+                <th>Параметры</th>
+                <th>Источник</th>
+                <th>Статус</th>
+                <th>Время</th>
+              </tr>
+            </thead>
+            <tbody id="history-rows"></tbody>
+          </table>
+        </div>
+      </section>
     </main>
 
     <script>
@@ -375,35 +450,25 @@
         const weatherPlaceEl = document.getElementById('weather-place');
         const weatherDetailsEl = document.getElementById('weather-details');
         const weatherErrorEl = document.getElementById('weather-error');
+        const historyButton = document.getElementById('history-button');
+        const historyEl = document.getElementById('history');
+        const historyLimitEl = document.getElementById('history-limit');
+        const historyRefreshButton = document.getElementById('history-refresh');
+        const historyStatusEl = document.getElementById('history-status');
+        const historyEmptyEl = document.getElementById('history-empty');
+        const historyTableWrapEl = document.getElementById('history-table-wrap');
+        const historyRowsEl = document.getElementById('history-rows');
 
-        const authEmailEl = document.getElementById('auth-email');
-        const authPasswordEl = document.getElementById('auth-password');
-        const authNameEl = document.getElementById('auth-name');
-        const authStatusEl = document.getElementById('auth-status');
-        const loginButton = document.getElementById('login-button');
-        const registerButton = document.getElementById('register-button');
-        const logoutButton = document.getElementById('logout-button');
         const TOKEN_KEY = 'igogo_token';
+        const logoutButton = document.getElementById('logout-button');
 
         function getToken() {
           return localStorage.getItem(TOKEN_KEY) || '';
         }
 
-        function showAuthStatus(message) {
-          authStatusEl.textContent = message || '';
-        }
-
-        function applyAuthState() {
-          const authorized = Boolean(getToken());
-          loginButton.hidden = authorized;
-          registerButton.hidden = authorized;
-          logoutButton.hidden = !authorized;
-          authEmailEl.disabled = authorized;
-          authPasswordEl.disabled = authorized;
-          authNameEl.disabled = authorized;
-          if (!authorized) {
-            showAuthStatus('');
-          }
+        function redirectToAuth() {
+          localStorage.removeItem(TOKEN_KEY);
+          location.assign('/auth.html');
         }
 
         function authFetch(url, options) {
@@ -416,71 +481,31 @@
           return fetch(url, opts);
         }
 
-        async function postAuth(endpoint) {
-          const email = authEmailEl.value.trim();
-          const password = authPasswordEl.value;
-          if (!email || !password) {
-            showAuthStatus('Укажите email и пароль.');
-            return;
-          }
-
-          const body = { email: email, password: password };
-          if (endpoint.indexOf('/register') !== -1) {
-            const name = authNameEl.value.trim();
-            if (name) {
-              body.display_name = name;
-            }
-          }
-
-          showAuthStatus('Отправляем запрос…');
-          try {
-            const response = await fetch(endpoint, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body),
-            });
-            const text = await response.text();
-            let data = null;
-            try {
-              data = JSON.parse(text);
-            } catch (parseError) {
-              data = null;
-            }
-            if (!response.ok || !data || !data.token) {
-              showAuthStatus((data && data.error) || text || ('HTTP ' + response.status));
-              return;
-            }
-
-            localStorage.setItem(TOKEN_KEY, data.token);
-            applyAuthState();
-            showAuthStatus('Вы вошли как ' + data.user.email);
-            authPasswordEl.value = '';
-            lastWeatherLocation = null;
-            locateUser(false);
-          } catch (error) {
-            showAuthStatus('Не удалось войти: ' + error.message);
-          }
-        }
-
-        loginButton.addEventListener('click', function () {
-          postAuth('/api/auth/login');
-        });
-
-        registerButton.addEventListener('click', function () {
-          postAuth('/api/auth/register');
-        });
-
         logoutButton.addEventListener('click', async function () {
           try {
             await authFetch('/api/auth/logout', { method: 'POST' });
           } catch (error) {
             // Даже при ошибке сети локальный токен нужно удалить.
           }
-          localStorage.removeItem(TOKEN_KEY);
-          applyAuthState();
-          showAuthStatus('Вы вышли.');
-          clearWeather();
-          clearOutput();
+          redirectToAuth();
+        });
+
+        historyButton.addEventListener('click', function () {
+          if (historyEl.hidden) {
+            loadHistory();
+            historyEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else {
+            historyEl.hidden = true;
+            historyButton.textContent = 'История';
+          }
+        });
+
+        historyRefreshButton.addEventListener('click', loadHistory);
+
+        historyLimitEl.addEventListener('change', function () {
+          if (!historyEl.hidden) {
+            loadHistory();
+          }
         });
 
         let currentController = null;
@@ -492,9 +517,10 @@
           locateUser(true);
         });
 
-        // Detect the user's location on page load only for an authorized user.
-        applyAuthState();
-        if (getToken()) {
+        // Без токена отправляем на отдельную страницу входа.
+        if (!getToken()) {
+          redirectToAuth();
+        } else {
           locateUser(false);
         }
 
@@ -559,8 +585,7 @@
             }
 
             if (response.status === 401) {
-              showError('401: Сначала войдите в аккаунт.');
-              showAuthStatus('Для поиска нужно войти.');
+              redirectToAuth();
               return;
             }
 
@@ -580,6 +605,9 @@
             }
 
             renderResults(payload);
+            if (!historyEl.hidden) {
+              loadHistory();
+            }
           } catch (error) {
             if (error.name === 'AbortError') {
               return;
@@ -712,7 +740,7 @@
                 return;
               }
               if (result.status === 401) {
-                showAuthStatus('Для погоды нужно войти.');
+                redirectToAuth();
                 return;
               }
               if (!result.ok || !result.payload || result.payload.error) {
@@ -903,6 +931,132 @@
         function renderRaw(payload) {
           jsonEl.textContent = JSON.stringify(payload, null, 2);
           resultsEl.hidden = false;
+        }
+
+        let historyController = null;
+
+        function showHistoryStatus(message) {
+          historyStatusEl.textContent = message || '';
+          historyStatusEl.hidden = !message;
+        }
+
+        function formatHistoryDate(raw) {
+          const date = new Date(raw);
+          return Number.isNaN(date.getTime()) ? String(raw || '') : date.toLocaleString('ru-RU');
+        }
+
+        function appendHistoryCell(row, text, className) {
+          const cell = document.createElement('td');
+          cell.textContent = text === null || text === undefined ? '' : String(text);
+          if (className) {
+            cell.className = className;
+          }
+          row.appendChild(cell);
+          return cell;
+        }
+
+        function createHistoryRow(item) {
+          const row = document.createElement('tr');
+
+          appendHistoryCell(row, formatHistoryDate(item.created_at));
+          appendHistoryCell(row, item.method);
+          appendHistoryCell(row, item.path);
+
+          const paramsCell = appendHistoryCell(row, '');
+          const params = item.query_params;
+          if (params && typeof params === 'object' && Object.keys(params).length > 0) {
+            const pre = document.createElement('pre');
+            pre.className = 'history-params';
+            pre.textContent = JSON.stringify(params, null, 2);
+            paramsCell.appendChild(pre);
+          } else {
+            paramsCell.textContent = '—';
+          }
+
+          appendHistoryCell(row, item.provider || '—');
+
+          const statusCell = appendHistoryCell(row, '');
+          const badge = document.createElement('span');
+          badge.className = 'status-badge ' + (item.status_code >= 400 ? 'bad' : 'ok');
+          badge.textContent = String(item.status_code);
+          statusCell.appendChild(badge);
+
+          appendHistoryCell(row, typeof item.duration_ms === 'number' ? item.duration_ms + ' мс' : '—');
+
+          return row;
+        }
+
+        function renderHistory(items) {
+          historyRowsEl.replaceChildren();
+
+          if (items.length === 0) {
+            historyEmptyEl.hidden = false;
+            historyTableWrapEl.hidden = true;
+            return;
+          }
+
+          historyEmptyEl.hidden = true;
+          historyTableWrapEl.hidden = false;
+          const fragment = document.createDocumentFragment();
+          items.forEach(function (item) {
+            fragment.appendChild(createHistoryRow(item));
+          });
+          historyRowsEl.appendChild(fragment);
+        }
+
+        async function loadHistory() {
+          historyEl.hidden = false;
+          historyButton.textContent = 'Скрыть историю';
+
+          if (historyController) {
+            historyController.abort();
+          }
+          const controller = new AbortController();
+          historyController = controller;
+          historyRefreshButton.disabled = true;
+          showHistoryStatus('Загружаем историю…');
+
+          try {
+            const response = await authFetch(
+              '/api/history?limit=' + encodeURIComponent(historyLimitEl.value),
+              {
+                signal: controller.signal,
+                headers: { Accept: 'application/json' },
+              }
+            );
+
+            if (response.status === 401) {
+              redirectToAuth();
+              return;
+            }
+
+            const text = await response.text();
+            let payload = null;
+            try {
+              payload = JSON.parse(text);
+            } catch (parseError) {
+              payload = null;
+            }
+
+            if (!response.ok || !payload) {
+              showHistoryStatus(
+                'Не удалось загрузить историю: ' + (text || ('HTTP ' + response.status))
+              );
+              return;
+            }
+
+            renderHistory(Array.isArray(payload.items) ? payload.items : []);
+            showHistoryStatus('');
+          } catch (error) {
+            if (error.name !== 'AbortError') {
+              showHistoryStatus('Не удалось загрузить историю: ' + error.message);
+            }
+          } finally {
+            if (historyController === controller) {
+              historyController = null;
+              historyRefreshButton.disabled = false;
+            }
+          }
         }
       })();
     </script>

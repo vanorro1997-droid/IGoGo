@@ -16,7 +16,7 @@ COPY --from=builder /app/api ./api
 
 # Copy frontend and schema (schema is also mounted by docker-compose)
 RUN mkdir -p frontend db
-COPY frontend/index.html frontend/
+COPY frontend/ frontend/
 COPY db/schema.sql db/
 
 # Expose port 8081
