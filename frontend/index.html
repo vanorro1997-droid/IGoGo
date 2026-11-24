@@ -1,52 +1,1064 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta name="description" content="IGoGo Application" />
-    <title>IGoGo</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <meta name="theme-color" content="#0b7a4b" />
+    <meta name="description" content="Поиск объектов через API 2ГИС" />
+    <title>IGoGo — поиск по 2ГИС</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-      .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
-      h1 { color: #333; }
-      pre { background: #f0f0f0; padding: 15px; border-radius: 4px; overflow-x: auto; }
+      :root {
+        --bg: #f2f5f3;
+        --card: #ffffff;
+        --text: #1c2b24;
+        --muted: #61736a;
+        --accent: #0b7a4b;
+        --accent-hover: #09653e;
+        --border: #d8e2dc;
+        --error-bg: #fdecec;
+        --error-border: #f3b7b7;
+        --error-text: #9b1c1c;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        padding: 32px 16px 56px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", Roboto, Arial, sans-serif;
+        line-height: 1.45;
+      }
+
+      .container { max-width: 960px; margin: 0 auto; }
+
+      header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .logout-button { padding: 8px 14px; font-size: 14px; }
+
+      .header-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+      .history-card { margin-top: 24px; }
+
+      .history-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .history-head h2 { margin: 0; font-size: 20px; }
+
+      .history-controls { display: flex; align-items: center; gap: 8px; }
+      .history-controls select { width: auto; padding: 8px 10px; }
+      .history-controls button { padding: 8px 14px; font-size: 14px; }
+
+      .history-status { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+
+      .history-table-wrap { margin-top: 14px; overflow-x: auto; }
+
+      .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+      .history-table th,
+      .history-table td {
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .history-table th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+      .history-table td { overflow-wrap: anywhere; }
+      .history-table tbody tr:last-child td { border-bottom: 0; }
+
+      .history-params {
+        max-width: 260px;
+        max-height: 160px;
+        margin: 0;
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+
+      .status-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .status-badge.ok { background: #e6f4ec; color: var(--accent); }
+      .status-badge.bad { background: var(--error-bg); color: var(--error-text); }
+
+      h1 { margin: 0 0 6px; font-size: 30px; letter-spacing: -0.02em; }
+
+      .subtitle { margin: 0; color: var(--muted); }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 22px;
+        box-shadow: 0 8px 24px rgba(18, 51, 36, 0.06);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+      .field-wide { grid-column: 1 / -1; }
+
+      .field > span { font-size: 14px; font-weight: 600; }
+
+      .field em { color: var(--accent); font-style: normal; }
+
+      .location-row { display: flex; gap: 8px; }
+
+      .location-row input { flex: 1; min-width: 0; }
+
+      .location-row button { white-space: nowrap; }
+
+      input, select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--text);
+        font: inherit;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+
+      input:focus, select:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(11, 122, 75, 0.14);
+      }
+
+      small { color: var(--muted); font-size: 12px; }
+
+      .actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+      button {
+        padding: 11px 20px;
+        border: 0;
+        border-radius: 8px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s, opacity 0.15s;
+      }
+
+      button[type="submit"] { background: var(--accent); color: #fff; }
+      button[type="submit"]:hover:not(:disabled) { background: var(--accent-hover); }
+      button[type="submit"]:disabled { opacity: 0.6; cursor: progress; }
+
+      button[type="button"] { background: #e8eeea; color: var(--text); }
+      button[type="button"]:hover { background: #dce6e0; }
+
+      .hint { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
+
+      .status { margin-top: 18px; color: var(--muted); font-size: 14px; }
+
+      .error {
+        margin-top: 18px;
+        padding: 12px 14px;
+        border: 1px solid var(--error-border);
+        border-radius: 10px;
+        background: var(--error-bg);
+        color: var(--error-text);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      .results { margin-top: 24px; }
+
+      .results-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .results-head h2 { margin: 0; font-size: 20px; }
+      .results-head span { color: var(--muted); font-size: 14px; }
+
+      .items { display: grid; gap: 10px; }
+
+      .item {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px 16px;
+      }
+
+      .item h3 { margin: 0 0 6px; font-size: 17px; }
+
+      .item p { margin: 0; color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+
+      .empty {
+        padding: 18px;
+        border: 1px dashed var(--border);
+        border-radius: 12px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      details { margin-top: 16px; }
+
+      summary {
+        cursor: pointer;
+        color: var(--accent);
+        font-weight: 600;
+        user-select: none;
+      }
+
+      pre {
+        margin: 10px 0 0;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #f7faf8;
+        overflow: auto;
+        max-height: 420px;
+        font-size: 12.5px;
+      }
+
+      [hidden] { display: none !important; }
+
+      .weather-card h2 { margin: 0 0 14px; font-size: 20px; }
+
+      .weather-main {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .weather-main img { display: block; }
+
+      .weather-temp { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; }
+
+      .weather-condition { font-size: 16px; color: var(--muted); }
+
+      .weather-place { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+
+      .weather-details {
+        display: flex;
+        gap: 10px 22px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+        font-size: 14px;
+        color: var(--muted);
+      }
+
+      .weather-details b { color: var(--text); font-weight: 600; }
+
+      .weather-error {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 640px) {
+        body { padding-top: 20px; }
+        .grid { grid-template-columns: 1fr; }
+        .field-wide { grid-column: auto; }
+      }
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <main class="container">
+      <header>
+        <div>
+          <h1>Поиск по 2ГИС</h1>
+          <p class="subtitle">
+            Поиск мест по Places API 2ГИС и текущая погода по вашему местоположению (WeatherAPI).
+            API-ключи хранятся на сервере и в браузер не передаются.
+          </p>
+        </div>
+        <div class="header-actions">
+          <button type="button" id="history-button">История</button>
+          <button type="button" id="logout-button" class="logout-button">Выйти</button>
+        </div>
+      </header>
+
+      <section id="weather" class="card weather-card" hidden>
+        <h2>Погода сейчас</h2>
+        <div class="weather-main">
+          <img id="weather-icon" alt="" width="64" height="64" />
+          <span id="weather-temp" class="weather-temp"></span>
+          <span id="weather-condition" class="weather-condition"></span>
+        </div>
+        <p id="weather-place" class="weather-place"></p>
+        <div id="weather-details" class="weather-details"></div>
+        <p id="weather-error" class="weather-error" hidden></p>
+      </section>
+
+      <form id="search-form" class="card" novalidate>
+        <div class="grid">
+          <label class="field field-wide">
+            <span>Что искать <em>*</em></span>
+            <input name="q" placeholder="Например: кафе" autocomplete="off" required />
+          </label>
+
+          <div class="field field-wide">
+            <span>Ваше местоположение</span>
+            <div class="location-row">
+              <input
+                name="location"
+                id="location-input"
+                placeholder="Определяется автоматически"
+                autocomplete="off"
+              />
+              <button type="button" id="locate-button">Определить</button>
+            </div>
+            <small>
+              Координаты определяются автоматически. Можно ввести вручную: долгота, широта.
+            </small>
+          </div>
+
+          <label class="field">
+            <span>Сортировка (sort)</span>
+            <select name="sort">
+              <option value="distance" selected>По расстоянию</option>
+              <option value="">По релевантности</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Страница (page)</span>
+            <input name="page" type="number" min="1" step="1" value="1" />
+          </label>
+
+          <label class="field">
+            <span>На странице (page_size)</span>
+            <input name="page_size" type="number" min="1" max="50" step="1" value="10" />
+          </label>
+
+          <label class="field">
+            <span>Радиус поиска, м (radius)</span>
+            <input name="radius" type="number" min="1" step="1" value="1000" />
+          </label>
+
+          <label class="field">
+            <span>Язык (locale)</span>
+            <select name="locale">
+              <option value="ru_RU">Русский</option>
+              <option value="en_US">English</option>
+            </select>
+          </label>
+
+          <label class="field field-wide">
+            <span>Дополнительные поля (fields)</span>
+            <input name="fields" value="items.point,items.address" autocomplete="off" />
+            <small>Через запятую, например: items.point,items.address,items.contact_groups</small>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button type="submit" id="submit-button">Найти</button>
+          <button type="button" id="reset-button">Сбросить</button>
+        </div>
+
+        <p class="hint">
+          Поиск выполняется рядом с вашим местоположением. Если геолокация недоступна, введите координаты вручную.
+        </p>
+      </form>
+
+      <p id="status" class="status" hidden></p>
+      <div id="error" class="error" hidden></div>
+
+      <section id="results" class="results" hidden>
+        <div class="results-head">
+          <h2>Результаты</h2>
+          <span id="total"></span>
+        </div>
+        <div id="items" class="items"></div>
+        <details>
+          <summary>Показать JSON ответа</summary>
+          <pre id="json"></pre>
+        </details>
+      </section>
+
+      <section id="history" class="card history-card" hidden>
+        <div class="history-head">
+          <h2>История запросов</h2>
+          <div class="history-controls">
+            <select id="history-limit" aria-label="Количество записей">
+              <option value="20">20 записей</option>
+              <option value="50" selected>50 записей</option>
+              <option value="100">100 записей</option>
+              <option value="200">200 записей</option>
+            </select>
+            <button type="button" id="history-refresh">Обновить</button>
+          </div>
+        </div>
+        <p id="history-status" class="history-status" hidden></p>
+        <div id="history-empty" class="empty" hidden>Запросов пока нет.</div>
+        <div id="history-table-wrap" class="history-table-wrap" hidden>
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Дата</th>
+                <th>Метод</th>
+                <th>Путь</th>
+                <th>Параметры</th>
+                <th>Источник</th>
+                <th>Статус</th>
+                <th>Время</th>
+              </tr>
+            </thead>
+            <tbody id="history-rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
     <script>
-      const { useState, useEffect } = React;
+      (function () {
+        const form = document.getElementById('search-form');
+        const submitButton = document.getElementById('submit-button');
+        const resetButton = document.getElementById('reset-button');
+        const locateButton = document.getElementById('locate-button');
+        const locationInput = document.getElementById('location-input');
+        const statusEl = document.getElementById('status');
+        const errorEl = document.getElementById('error');
+        const resultsEl = document.getElementById('results');
+        const itemsEl = document.getElementById('items');
+        const totalEl = document.getElementById('total');
+        const jsonEl = document.getElementById('json');
+        const weatherEl = document.getElementById('weather');
+        const weatherIconEl = document.getElementById('weather-icon');
+        const weatherTempEl = document.getElementById('weather-temp');
+        const weatherConditionEl = document.getElementById('weather-condition');
+        const weatherPlaceEl = document.getElementById('weather-place');
+        const weatherDetailsEl = document.getElementById('weather-details');
+        const weatherErrorEl = document.getElementById('weather-error');
+        const historyButton = document.getElementById('history-button');
+        const historyEl = document.getElementById('history');
+        const historyLimitEl = document.getElementById('history-limit');
+        const historyRefreshButton = document.getElementById('history-refresh');
+        const historyStatusEl = document.getElementById('history-status');
+        const historyEmptyEl = document.getElementById('history-empty');
+        const historyTableWrapEl = document.getElementById('history-table-wrap');
+        const historyRowsEl = document.getElementById('history-rows');
 
-      function App() {
-        const [data, setData] = useState(null);
-        const [health, setHealth] = useState(null);
+        const TOKEN_KEY = 'igogo_token';
+        const logoutButton = document.getElementById('logout-button');
 
-        useEffect(() => {
-          fetch('/api/health')
-            .then(res => res.json())
-            .then(data => setHealth(data))
-            .catch(err => console.error(err));
+        function getToken() {
+          return localStorage.getItem(TOKEN_KEY) || '';
+        }
 
-          fetch('/api/data')
-            .then(res => res.json())
-            .then(data => setData(data))
-            .catch(err => console.error(err));
-        }, []);
+        function redirectToAuth() {
+          localStorage.removeItem(TOKEN_KEY);
+          location.assign('/auth.html');
+        }
 
-        return React.createElement('div', { className: 'container' }, 
-          React.createElement('h1', null, 'IGoGo Application'),
-          React.createElement('h2', null, 'Health Status'),
-          React.createElement('pre', null, JSON.stringify(health, null, 2)),
-          React.createElement('h2', null, 'API Data'),
-          React.createElement('pre', null, JSON.stringify(data, null, 2))
-        );
-      }
+        function authFetch(url, options) {
+          const opts = Object.assign({}, options || {});
+          opts.headers = new Headers(opts.headers || {});
+          const token = getToken();
+          if (token) {
+            opts.headers.set('Authorization', 'Bearer ' + token);
+          }
+          return fetch(url, opts);
+        }
 
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      root.render(React.createElement(App));
+        logoutButton.addEventListener('click', async function () {
+          try {
+            await authFetch('/api/auth/logout', { method: 'POST' });
+          } catch (error) {
+            // Даже при ошибке сети локальный токен нужно удалить.
+          }
+          redirectToAuth();
+        });
+
+        historyButton.addEventListener('click', function () {
+          if (historyEl.hidden) {
+            loadHistory();
+            historyEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else {
+            historyEl.hidden = true;
+            historyButton.textContent = 'История';
+          }
+        });
+
+        historyRefreshButton.addEventListener('click', loadHistory);
+
+        historyLimitEl.addEventListener('change', function () {
+          if (!historyEl.hidden) {
+            loadHistory();
+          }
+        });
+
+        let currentController = null;
+        let locatingPromise = null;
+        let weatherController = null;
+        let lastWeatherLocation = null;
+
+        locateButton.addEventListener('click', function () {
+          locateUser(true);
+        });
+
+        // Без токена отправляем на отдельную страницу входа.
+        if (!getToken()) {
+          redirectToAuth();
+        } else {
+          locateUser(false);
+        }
+
+        form.addEventListener('submit', async function (event) {
+          event.preventDefault();
+
+          const params = new URLSearchParams();
+          const formData = new FormData(form);
+
+          for (const [name, value] of formData.entries()) {
+            const trimmed = String(value).trim();
+            if (trimmed !== '') {
+              params.set(name, trimmed);
+            }
+          }
+
+          if (!params.get('q')) {
+            showError('Укажите, что искать.');
+            return;
+          }
+
+          if (!params.get('location')) {
+            setStatus('Определяем местоположение…');
+            const location = await locateUser(true);
+            if (!location) {
+              showError(
+                'Не удалось получить местоположение. Разрешите доступ к геолокации ' +
+                'или введите координаты вручную.'
+              );
+              return;
+            }
+            params.set('location', location);
+          }
+
+          // Refresh the weather card for the location being searched.
+          loadWeather(params.get('location'));
+
+          if (currentController) {
+            currentController.abort();
+          }
+
+          const controller = new AbortController();
+          currentController = controller;
+
+          clearOutput();
+          setLoading(true);
+          setStatus('Запрос к 2ГИС…');
+
+          try {
+            const response = await authFetch('/api/2gis/search?' + params.toString(), {
+              signal: controller.signal,
+              headers: { Accept: 'application/json' },
+            });
+
+            const text = await response.text();
+            let payload = null;
+
+            try {
+              payload = JSON.parse(text);
+            } catch (parseError) {
+              payload = null;
+            }
+
+            if (response.status === 401) {
+              redirectToAuth();
+              return;
+            }
+
+            if (!response.ok) {
+              const fallback = text || ('HTTP ' + response.status);
+              const message = extractError(payload, fallback);
+              showError(response.status + ': ' + message);
+              if (payload) {
+                renderRaw(payload);
+              }
+              return;
+            }
+
+            if (!payload) {
+              showError('Сервер вернул не JSON. Проверьте, что API-ключ 2ГИС настроен.');
+              return;
+            }
+
+            renderResults(payload);
+            if (!historyEl.hidden) {
+              loadHistory();
+            }
+          } catch (error) {
+            if (error.name === 'AbortError') {
+              return;
+            }
+            showError('Не удалось выполнить запрос: ' + error.message);
+          } finally {
+            if (currentController === controller) {
+              currentController = null;
+              setLoading(false);
+              setStatus('');
+            }
+          }
+        });
+
+        resetButton.addEventListener('click', function () {
+          if (currentController) {
+            currentController.abort();
+            currentController = null;
+          }
+          form.reset();
+          clearOutput();
+          clearWeather();
+          setStatus('');
+          setLoading(false);
+          form.elements.q.focus();
+          locateUser(false);
+        });
+
+        function locateUser(showErrors) {
+          if (!navigator.geolocation) {
+            const message = 'Браузер не поддерживает геолокацию. Введите координаты вручную.';
+            if (showErrors) {
+              showError(message);
+            } else {
+              setStatus(message);
+            }
+            return Promise.resolve(null);
+          }
+
+          if (locatingPromise) {
+            return locatingPromise;
+          }
+
+          setStatus('Определяем местоположение…');
+
+          locatingPromise = new Promise(function (resolve) {
+            navigator.geolocation.getCurrentPosition(
+              function (position) {
+                const coords = position.coords;
+                const location = coords.longitude.toFixed(6) + ',' + coords.latitude.toFixed(6);
+                locationInput.value = location;
+                setStatus('Местоположение определено: ' + location);
+                loadWeather(location);
+                resolve(location);
+              },
+              function (error) {
+                const message = geoErrorMessage(error);
+                if (showErrors) {
+                  showError(message + ' Введите координаты вручную.');
+                } else {
+                  setStatus(message + ' Введите координаты вручную или нажмите «Определить».');
+                }
+                resolve(null);
+              },
+              { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+            );
+          });
+
+          const promise = locatingPromise;
+          promise.then(function () {
+            if (locatingPromise === promise) {
+              locatingPromise = null;
+            }
+          });
+
+          return promise;
+        }
+
+        function geoErrorMessage(error) {
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              return 'Доступ к геолокации запрещён.';
+            case error.POSITION_UNAVAILABLE:
+              return 'Не удалось определить местоположение.';
+            case error.TIMEOUT:
+              return 'Истекло время ожидания геолокации.';
+            default:
+              return 'Не удалось определить местоположение.';
+          }
+        }
+
+        function loadWeather(location) {
+          if (!location || location === lastWeatherLocation) {
+            return;
+          }
+          lastWeatherLocation = location;
+
+          if (weatherController) {
+            weatherController.abort();
+          }
+          const controller = new AbortController();
+          weatherController = controller;
+
+          weatherErrorEl.hidden = true;
+          weatherErrorEl.textContent = '';
+          weatherEl.hidden = false;
+          weatherTempEl.textContent = '…';
+          weatherConditionEl.textContent = 'Загружаем погоду…';
+          weatherPlaceEl.textContent = '';
+          weatherDetailsEl.replaceChildren();
+          weatherIconEl.removeAttribute('src');
+
+          authFetch('/api/weather?location=' + encodeURIComponent(location), {
+            signal: controller.signal,
+            headers: { Accept: 'application/json' },
+          })
+            .then(function (response) {
+              return response.text().then(function (text) {
+                let payload = null;
+                try {
+                  payload = JSON.parse(text);
+                } catch (parseError) {
+                  payload = null;
+                }
+                return { ok: response.ok, status: response.status, payload: payload, text: text };
+              });
+            })
+            .then(function (result) {
+              if (controller.signal.aborted) {
+                return;
+              }
+              if (result.status === 401) {
+                redirectToAuth();
+                return;
+              }
+              if (!result.ok || !result.payload || result.payload.error) {
+                const message = result.payload && result.payload.error
+                  ? (typeof result.payload.error === 'string'
+                      ? result.payload.error
+                      : result.payload.error.message || JSON.stringify(result.payload.error))
+                  : (result.text || ('HTTP ' + result.status));
+                showWeatherError('Погода недоступна: ' + message);
+                return;
+              }
+              renderWeather(result.payload);
+            })
+            .catch(function (error) {
+              if (error.name === 'AbortError') {
+                return;
+              }
+              showWeatherError('Погода недоступна: ' + error.message);
+            });
+        }
+
+        function showWeatherError(message) {
+          weatherTempEl.textContent = '';
+          weatherConditionEl.textContent = '';
+          weatherPlaceEl.textContent = '';
+          weatherDetailsEl.replaceChildren();
+          weatherIconEl.removeAttribute('src');
+          weatherErrorEl.textContent = message;
+          weatherErrorEl.hidden = false;
+        }
+
+        function renderWeather(payload) {
+          const location = payload.location || {};
+          const current = payload.current || {};
+          const condition = current.condition || {};
+
+          const place = [location.name, location.region, location.country]
+            .filter(Boolean)
+            .join(', ');
+          weatherPlaceEl.textContent = place || '';
+
+          weatherTempEl.textContent =
+            typeof current.temp_c === 'number' ? Math.round(current.temp_c) + ' °C' : '';
+
+          weatherConditionEl.textContent = condition.text || '';
+
+          if (condition.icon) {
+            weatherIconEl.src = condition.icon.startsWith('//')
+              ? 'https:' + condition.icon
+              : condition.icon;
+            weatherIconEl.alt = condition.text || '';
+          } else {
+            weatherIconEl.removeAttribute('src');
+          }
+
+          const details = [
+            ['Ощущается', typeof current.feelslike_c === 'number' ? Math.round(current.feelslike_c) + ' °C' : null],
+            ['Ветер', typeof current.wind_kph === 'number' ? Math.round(current.wind_kph) + ' км/ч' + (current.wind_dir ? ' (' + current.wind_dir + ')' : '') : null],
+            ['Влажность', typeof current.humidity === 'number' ? current.humidity + '%' : null],
+            ['Осадки', typeof current.precip_mm === 'number' ? current.precip_mm + ' мм' : null],
+            ['Местное время', location.localtime || null],
+          ];
+
+          weatherDetailsEl.replaceChildren();
+          details.forEach(function (pair) {
+            if (pair[1] === null) {
+              return;
+            }
+            const item = document.createElement('span');
+            const label = document.createElement('span');
+            label.textContent = pair[0] + ': ';
+            const value = document.createElement('b');
+            value.textContent = pair[1];
+            item.appendChild(label);
+            item.appendChild(value);
+            weatherDetailsEl.appendChild(item);
+          });
+
+          weatherErrorEl.hidden = true;
+        }
+
+        function clearWeather() {
+          lastWeatherLocation = null;
+          if (weatherController) {
+            weatherController.abort();
+            weatherController = null;
+          }
+          weatherEl.hidden = true;
+          weatherErrorEl.hidden = true;
+          weatherErrorEl.textContent = '';
+          weatherTempEl.textContent = '';
+          weatherConditionEl.textContent = '';
+          weatherPlaceEl.textContent = '';
+          weatherDetailsEl.replaceChildren();
+          weatherIconEl.removeAttribute('src');
+        }
+
+        function setLoading(loading) {
+          submitButton.disabled = loading;
+          submitButton.textContent = loading ? 'Ищу…' : 'Найти';
+        }
+
+        function setStatus(message) {
+          statusEl.textContent = message;
+          statusEl.hidden = message === '';
+        }
+
+        function clearOutput() {
+          errorEl.hidden = true;
+          errorEl.textContent = '';
+          resultsEl.hidden = true;
+          itemsEl.replaceChildren();
+          totalEl.textContent = '';
+          jsonEl.textContent = '';
+        }
+
+        function showError(message) {
+          setStatus('');
+          errorEl.textContent = message;
+          errorEl.hidden = false;
+        }
+
+        function extractError(payload, fallback) {
+          if (payload && payload.meta && payload.meta.error && payload.meta.error.message) {
+            return payload.meta.error.message;
+          }
+          if (payload && payload.error) {
+            return typeof payload.error === 'string' ? payload.error : JSON.stringify(payload.error);
+          }
+          return fallback;
+        }
+
+        function renderResults(payload) {
+          const result = payload.result || {};
+          const items = Array.isArray(result.items) ? result.items : [];
+          const total = typeof result.total === 'number' ? result.total : items.length;
+
+          totalEl.textContent = 'Найдено: ' + total;
+          itemsEl.replaceChildren();
+
+          if (items.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'empty';
+            empty.textContent = 'Ничего не найдено. Попробуйте изменить запрос или геоограничение.';
+            itemsEl.appendChild(empty);
+          } else {
+            items.forEach(function (item) {
+              itemsEl.appendChild(createItemCard(item));
+            });
+          }
+
+          renderRaw(payload);
+          resultsEl.hidden = false;
+        }
+
+        function createItemCard(item) {
+          const card = document.createElement('article');
+          card.className = 'item';
+
+          const title = document.createElement('h3');
+          title.textContent = item.name || 'Без названия';
+          card.appendChild(title);
+
+          const details = [];
+
+          if (item.address_name) {
+            details.push(item.address_name);
+          }
+          if (item.type) {
+            details.push('тип: ' + item.type);
+          }
+          if (item.id) {
+            details.push('ID: ' + item.id);
+          }
+          if (item.point && typeof item.point.lat === 'number' && typeof item.point.lon === 'number') {
+            details.push('координаты: ' + item.point.lat + ', ' + item.point.lon);
+          }
+
+          if (details.length > 0) {
+            const description = document.createElement('p');
+            description.textContent = details.join(' · ');
+            card.appendChild(description);
+          }
+
+          return card;
+        }
+
+        function renderRaw(payload) {
+          jsonEl.textContent = JSON.stringify(payload, null, 2);
+          resultsEl.hidden = false;
+        }
+
+        let historyController = null;
+
+        function showHistoryStatus(message) {
+          historyStatusEl.textContent = message || '';
+          historyStatusEl.hidden = !message;
+        }
+
+        function formatHistoryDate(raw) {
+          const date = new Date(raw);
+          return Number.isNaN(date.getTime()) ? String(raw || '') : date.toLocaleString('ru-RU');
+        }
+
+        function appendHistoryCell(row, text, className) {
+          const cell = document.createElement('td');
+          cell.textContent = text === null || text === undefined ? '' : String(text);
+          if (className) {
+            cell.className = className;
+          }
+          row.appendChild(cell);
+          return cell;
+        }
+
+        function createHistoryRow(item) {
+          const row = document.createElement('tr');
+
+          appendHistoryCell(row, formatHistoryDate(item.created_at));
+          appendHistoryCell(row, item.method);
+          appendHistoryCell(row, item.path);
+
+          const paramsCell = appendHistoryCell(row, '');
+          const params = item.query_params;
+          if (params && typeof params === 'object' && Object.keys(params).length > 0) {
+            const pre = document.createElement('pre');
+            pre.className = 'history-params';
+            pre.textContent = JSON.stringify(params, null, 2);
+            paramsCell.appendChild(pre);
+          } else {
+            paramsCell.textContent = '—';
+          }
+
+          appendHistoryCell(row, item.provider || '—');
+
+          const statusCell = appendHistoryCell(row, '');
+          const badge = document.createElement('span');
+          badge.className = 'status-badge ' + (item.status_code >= 400 ? 'bad' : 'ok');
+          badge.textContent = String(item.status_code);
+          statusCell.appendChild(badge);
+
+          appendHistoryCell(row, typeof item.duration_ms === 'number' ? item.duration_ms + ' мс' : '—');
+
+          return row;
+        }
+
+        function renderHistory(items) {
+          historyRowsEl.replaceChildren();
+
+          if (items.length === 0) {
+            historyEmptyEl.hidden = false;
+            historyTableWrapEl.hidden = true;
+            return;
+          }
+
+          historyEmptyEl.hidden = true;
+          historyTableWrapEl.hidden = false;
+          const fragment = document.createDocumentFragment();
+          items.forEach(function (item) {
+            fragment.appendChild(createHistoryRow(item));
+          });
+          historyRowsEl.appendChild(fragment);
+        }
+
+        async function loadHistory() {
+          historyEl.hidden = false;
+          historyButton.textContent = 'Скрыть историю';
+
+          if (historyController) {
+            historyController.abort();
+          }
+          const controller = new AbortController();
+          historyController = controller;
+          historyRefreshButton.disabled = true;
+          showHistoryStatus('Загружаем историю…');
+
+          try {
+            const response = await authFetch(
+              '/api/history?limit=' + encodeURIComponent(historyLimitEl.value),
+              {
+                signal: controller.signal,
+                headers: { Accept: 'application/json' },
+              }
+            );
+
+            if (response.status === 401) {
+              redirectToAuth();
+              return;
+            }
+
+            const text = await response.text();
+            let payload = null;
+            try {
+              payload = JSON.parse(text);
+            } catch (parseError) {
+              payload = null;
+            }
+
+            if (!response.ok || !payload) {
+              showHistoryStatus(
+                'Не удалось загрузить историю: ' + (text || ('HTTP ' + response.status))
+              );
+              return;
+            }
+
+            renderHistory(Array.isArray(payload.items) ? payload.items : []);
+            showHistoryStatus('');
+          } catch (error) {
+            if (error.name !== 'AbortError') {
+              showHistoryStatus('Не удалось загрузить историю: ' + error.message);
+            }
+          } finally {
+            if (historyController === controller) {
+              historyController = null;
+              historyRefreshButton.disabled = false;
+            }
+          }
+        }
+      })();
     </script>
   </body>
 </html>

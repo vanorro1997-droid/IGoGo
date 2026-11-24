@@ -12,6 +12,7 @@ func isolateEnvironment(t *testing.T) {
 		"PORT", "FRONTEND_DIR", "WEATHER_PROVIDER", "LLM_ENABLED",
 		"CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_MODEL",
 		"CLOUDFLARE_PROXY", "CLOUDFLARE_SYSTEM_PROMPT", "HTTPS_PROXY",
+		"DB_ENABLED", "DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "DB_SSLMODE",
 	} {
 		t.Setenv(key, "")
 		if err := os.Unsetenv(key); err != nil {
@@ -26,7 +27,7 @@ func TestLoadDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Port != "8080" || cfg.FrontendDir != "frontend" || cfg.WeatherProvider != "mock" || cfg.LLMEnabled {
+	if cfg.Port != "8080" || cfg.FrontendDir != "frontend" || cfg.WeatherProvider != "mock" || cfg.LLMEnabled || cfg.DatabaseEnabled {
 		t.Fatalf("unexpected defaults: port=%s, frontend=%s, weather=%s, llm=%t",
 			cfg.Port, cfg.FrontendDir, cfg.WeatherProvider, cfg.LLMEnabled)
 	}
@@ -70,12 +71,34 @@ func TestLoadRejectsInvalidSettings(t *testing.T) {
 		{"PORT", "65536"},
 		{"WEATHER_PROVIDER", "unknown"},
 		{"LLM_ENABLED", "sometimes"},
+		{"DB_ENABLED", "sometimes"},
 	} {
 		t.Run(test.key+"="+test.value, func(t *testing.T) {
 			isolateEnvironment(t)
 			t.Setenv(test.key, test.value)
 			if _, err := Load(); err == nil {
 				t.Fatal("expected invalid configuration to be rejected")
+			}
+		})
+	}
+}
+
+func TestLoadDatabaseConfiguration(t *testing.T) {
+	for _, test := range []struct {
+		name, host, enabled string
+		want                bool
+	}{
+		{"configured database", "localhost", "", true},
+		{"explicitly enabled", "", "true", true},
+		{"explicitly disabled", "localhost", "false", false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			isolateEnvironment(t)
+			t.Setenv("DB_HOST", test.host)
+			t.Setenv("DB_ENABLED", test.enabled)
+			cfg, err := Load()
+			if err != nil || cfg.DatabaseEnabled != test.want {
+				t.Fatalf("DatabaseEnabled = %t, want %t; error = %v", cfg.DatabaseEnabled, test.want, err)
 			}
 		})
 	}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/vanorro1997-droid/IGoGo/internal/config"
 	"github.com/vanorro1997-droid/IGoGo/internal/providers/llm"
+	"github.com/vanorro1997-droid/IGoGo/internal/storage"
 )
 
 func TestNewHandlerWiresModules(t *testing.T) {
@@ -56,5 +57,20 @@ func TestNewHandlerRequiresCredentialsOnlyWhenLLMEnabled(t *testing.T) {
 	cfg.LLM = llm.Config{APIKey: "test-token", AccountID: "test-account"}
 	if _, err := NewHandler(cfg); err != nil {
 		t.Fatalf("LLM initialization must not make external requests: %v", err)
+	}
+}
+
+func TestDatabaseHandlerProtectsBusinessEndpoints(t *testing.T) {
+	// Запрос без токена должен отклоняться до обращения к БД.
+	handler, err := newHandler(config.Config{WeatherProvider: "mock"}, &storage.Store{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/api/data", "/api/weather", "/api/transport/stations", "/api/history", "/api/2gis/search"} {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("%s status = %d, want 401", path, response.Code)
+		}
 	}
 }

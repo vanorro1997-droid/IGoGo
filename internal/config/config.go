@@ -15,6 +15,7 @@ type Config struct {
 	Port            string
 	FrontendDir     string
 	WeatherProvider string
+	DatabaseEnabled bool
 	LLMEnabled      bool
 	LLM             llm.Config
 }
@@ -38,6 +39,10 @@ func Load() (Config, error) {
 	if cfg.WeatherProvider != "mock" && cfg.WeatherProvider != "open-meteo" {
 		return Config{}, fmt.Errorf("WEATHER_PROVIDER must be mock or open-meteo")
 	}
+	cfg.DatabaseEnabled, err = strconv.ParseBool(strings.TrimSpace(envOr("DB_ENABLED", strconv.FormatBool(databaseConfigured()))))
+	if err != nil {
+		return Config{}, fmt.Errorf("DB_ENABLED must be a boolean")
+	}
 	cfg.LLMEnabled, err = strconv.ParseBool(strings.TrimSpace(envOr("LLM_ENABLED", "false")))
 	if err != nil {
 		return Config{}, fmt.Errorf("LLM_ENABLED must be a boolean")
@@ -51,6 +56,15 @@ func Load() (Config, error) {
 		SystemPrompt: os.Getenv("CLOUDFLARE_SYSTEM_PROMPT"),
 	}
 	return cfg, nil
+}
+
+func databaseConfigured() bool {
+	for _, key := range []string{"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME"} {
+		if strings.TrimSpace(os.Getenv(key)) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func envOr(key, fallback string) string {

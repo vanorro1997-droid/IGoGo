@@ -66,6 +66,12 @@ func TestMethodsAndUnknownAPIPaths(t *testing.T) {
 		{http.MethodPost, "/api/transport/stations", http.MethodGet, http.StatusMethodNotAllowed},
 		{http.MethodPost, "/api/transport/routes", http.MethodGet, http.StatusMethodNotAllowed},
 		{http.MethodGet, "/api/llm", http.MethodPost, http.StatusMethodNotAllowed},
+		{http.MethodGet, "/api/auth/register", http.MethodPost, http.StatusMethodNotAllowed},
+		{http.MethodGet, "/api/auth/login", http.MethodPost, http.StatusMethodNotAllowed},
+		{http.MethodGet, "/api/auth/logout", http.MethodPost, http.StatusMethodNotAllowed},
+		{http.MethodPost, "/api/me", http.MethodGet, http.StatusMethodNotAllowed},
+		{http.MethodPost, "/api/history", http.MethodGet, http.StatusMethodNotAllowed},
+		{http.MethodPost, "/api/2gis/search", http.MethodGet, http.StatusMethodNotAllowed},
 		{http.MethodGet, "/api/unknown", "", http.StatusNotFound},
 		{http.MethodGet, "/api", "", http.StatusNotFound},
 	} {
@@ -372,5 +378,36 @@ func TestStaticFrontendUsesConfiguredDirectory(t *testing.T) {
 	response = requestJSON(t, handler, http.MethodGet, "/api/unknown", "")
 	if response.Code != http.StatusNotFound {
 		t.Fatal("unknown API paths must not fall through to static files")
+	}
+}
+
+func TestFrontendAuthPageAndSPARoutes(t *testing.T) {
+	frontend := t.TempDir()
+	for name, body := range map[string]string{"index.html": "main page", "auth.html": "auth page"} {
+		if err := os.WriteFile(filepath.Join(frontend, name), []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	handler := NewRouter(frontend, testDependencies())
+	for _, test := range []struct {
+		method, path, body string
+		status             int
+	}{
+		{http.MethodGet, "/auth.html", "auth page", http.StatusOK},
+		{http.MethodGet, "/saved/routes", "main page", http.StatusOK},
+		{http.MethodHead, "/saved/routes", "", http.StatusOK},
+		{http.MethodGet, "/missing.js", "", http.StatusNotFound},
+		{http.MethodPost, "/", "", http.StatusMethodNotAllowed},
+	} {
+		t.Run(test.method+test.path, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(test.method, test.path, nil))
+			if response.Code != test.status || (test.body != "" && !strings.Contains(response.Body.String(), test.body)) {
+				t.Fatalf("frontend response = %d %s", response.Code, response.Body.String())
+			}
+			if test.method == http.MethodHead && response.Body.Len() != 0 {
+				t.Fatal("HEAD must not return a response body")
+			}
+		})
 	}
 }

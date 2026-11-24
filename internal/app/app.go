@@ -16,10 +16,15 @@ import (
 	"github.com/vanorro1997-droid/IGoGo/internal/providers/llm"
 	"github.com/vanorro1997-droid/IGoGo/internal/providers/transport"
 	"github.com/vanorro1997-droid/IGoGo/internal/providers/weather"
+	"github.com/vanorro1997-droid/IGoGo/internal/storage"
 )
 
-// NewHandler связывает существующие провайдеры с HTTP API.
+// NewHandler связывает провайдеры с HTTP API без подключения БД.
 func NewHandler(cfg config.Config) (http.Handler, error) {
+	return newHandler(cfg, nil)
+}
+
+func newHandler(cfg config.Config, store *storage.Store) (http.Handler, error) {
 	var weatherProvider weather.Provider
 	switch cfg.WeatherProvider {
 	case "mock":
@@ -34,6 +39,7 @@ func NewHandler(cfg config.Config) (http.Handler, error) {
 		Weather:   weatherProvider,
 		Stations:  transport.NewMockStationProvider(),
 		Timetable: transport.NewMockTimetableProvider(),
+		Store:     store,
 	}
 	if cfg.LLMEnabled {
 		client, err := llm.New(cfg.LLM)
@@ -51,7 +57,15 @@ func Run() error {
 	if err != nil {
 		return err
 	}
-	handler, err := NewHandler(cfg)
+	var store *storage.Store
+	if cfg.DatabaseEnabled {
+		store, err = storage.OpenStore()
+		if err != nil {
+			return fmt.Errorf("database: %w", err)
+		}
+		defer store.Close()
+	}
+	handler, err := newHandler(cfg, store)
 	if err != nil {
 		return err
 	}
@@ -69,8 +83,8 @@ func Run() error {
 
 	errorsCh := make(chan error, 1)
 	go func() { errorsCh <- server.ListenAndServe() }()
-	log.Printf("Server starting on port %s (weather=%s, transport=mock, llm_enabled=%t)",
-		cfg.Port, cfg.WeatherProvider, cfg.LLMEnabled)
+	log.Printf("Server starting on port %s (weather=%s, transport=mock, llm_enabled=%t, database_enabled=%t)",
+		cfg.Port, cfg.WeatherProvider, cfg.LLMEnabled, cfg.DatabaseEnabled)
 
 	select {
 	case err := <-errorsCh:
