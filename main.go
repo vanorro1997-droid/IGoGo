@@ -1,54 +1,14 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
-	"net/http"
-	"os"
 
-	"github.com/joho/godotenv"
-	weather "github.com/vanorro1997-droid/IGoGo/internal/providers/weather"
+	"github.com/vanorro1997-droid/IGoGo/internal/app"
 )
 
-func init() {
-	// Загружаем переменные из .env при старте приложения
-	if err := godotenv.Load(); err != nil {
-		log.Println("Файл .env не найден, используются системные переменные окружения")
-	}
-}
-
+// Сохраняем запуск через go run .; основная точка входа находится в cmd/api.
 func main() {
-	// Теперь провайдер будет использовать прокси из .env
-	weatherProvider := weather.NewOpenMeteo()
-
-	http.HandleFunc("/api/health", healthHandler)
-	http.HandleFunc("/api/data", dataHandler)
-	http.HandleFunc("/api/weather", makeWeatherHandler(weatherProvider))
-	http.HandleFunc("/", rootHandler)
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	if err := app.Run(); err != nil {
+		log.Fatal(err)
 	}
-
-	log.Printf("Server starting on port %s (Weather: real, proxy from .env)", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
-}
-
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/" {
-		http.ServeFile(w, r, "/app/frontend/index.html")
-	} else {
-		http.ServeFile(w, r, "/app/frontend/"+r.URL.Path)
-	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-}
-
-func dataHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "Hello from Go API"})
 }
