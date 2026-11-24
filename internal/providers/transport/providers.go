@@ -2,8 +2,11 @@ package transport
 
 import (
 	"context"
+	"errors"
 	"time"
 )
+
+var ErrStationNotFound = errors.New("station not found")
 
 // StationProvider интерфейс для поиска станций
 type StationProvider interface {

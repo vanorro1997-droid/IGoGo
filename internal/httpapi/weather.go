@@ -1,24 +1,21 @@
-package main
+package httpapi
 
 import (
-	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"strconv"
 	"time"
 
-	weather "github.com/vanorro1997-droid/IGoGo/internal/providers/weather"
+	"github.com/vanorro1997-droid/IGoGo/internal/providers/weather"
 )
 
 func makeWeatherHandler(provider weather.Provider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{
-				"error": "method not allowed",
-			})
+		if provider == nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "weather provider is not configured"})
 			return
 		}
-
 		q := r.URL.Query()
 
 		// Дефолтные значения для теста
@@ -28,7 +25,7 @@ func makeWeatherHandler(provider weather.Provider) http.HandlerFunc {
 
 		if v := q.Get("lat"); v != "" {
 			parsed, err := strconv.ParseFloat(v, 64)
-			if err != nil || parsed < -90 || parsed > 90 {
+			if err != nil || math.IsNaN(parsed) || parsed < -90 || parsed > 90 {
 				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid lat"})
 				return
 			}
@@ -37,7 +34,7 @@ func makeWeatherHandler(provider weather.Provider) http.HandlerFunc {
 
 		if v := q.Get("lon"); v != "" {
 			parsed, err := strconv.ParseFloat(v, 64)
-			if err != nil || parsed < -180 || parsed > 180 {
+			if err != nil || math.IsNaN(parsed) || parsed < -180 || parsed > 180 {
 				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid lon"})
 				return
 			}
@@ -73,10 +70,4 @@ func makeWeatherHandler(provider weather.Provider) http.HandlerFunc {
 
 		writeJSON(w, http.StatusOK, forecast)
 	}
-}
-
-func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
 }

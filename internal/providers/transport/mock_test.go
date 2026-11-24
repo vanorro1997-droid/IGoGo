@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -69,6 +70,9 @@ func TestMockStationProviderNotFound(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("expected error for nonexistent station")
+	}
+	if !errors.Is(err, ErrStationNotFound) {
+		t.Error("expected an identifiable station-not-found error")
 	}
 
 	if station != nil {
