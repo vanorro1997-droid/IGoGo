@@ -1,0 +1,277 @@
+# ER-диаграмма IGoGo
+
+Исходник: `er-diagram.mmd`, схема: `schema.sql`. Формат: [Mermaid](https://mermaid.js.org/syntax/entityRelationshipDiagram.html).
+
+**Обозначения:** `||` — один, `o|` / `|o` — ноль или один, `o{` / `}o` — ноль или много, `|{` / `}|` — один или много. `PK` — первичный ключ, `FK` — внешний, `UK` — уникальный.
+
+```mermaid
+erDiagram
+    USER_ROLE ||--o{ APP_USER : "role for"
+    APP_USER ||--o{ USER_SESSION : "owns"
+    APP_USER ||--o{ SAVED_SEARCH : "saves"
+    APP_USER ||--o{ SEARCH_RUN : "runs"
+    APP_USER ||--o{ ROUTE : "builds"
+    APP_USER ||--o{ API_REQUEST_LOG : "logged requests"
+
+    CITY ||--o{ CITY_ALIAS : "has names"
+    CITY |o--o{ PLACE : "located in"
+    CITY |o--o{ SAVED_SEARCH : "origin / destination"
+    CITY |o--o{ ROUTE : "origin / destination"
+    CITY |o--o{ ROUTE_WAYPOINT : "waypoint city"
+    CITY ||--o| WEATHER_CURRENT : "current weather"
+    CITY ||--o{ WEATHER_DAILY : "daily forecast"
+
+    ROUTE_TYPE ||--o{ SAVED_SEARCH : "route kind"
+    ROUTE_TYPE ||--o{ ROUTE : "route kind"
+
+    SAVED_SEARCH |o--o{ SEARCH_RUN : "logged by"
+    SAVED_SEARCH |o--o{ ROUTE : "produces"
+    SEARCH_RUN |o--o{ ROUTE : "builds"
+    SEARCH_RUN ||--o{ SEARCH_RESULT : "returns"
+    PLACE ||--o{ SEARCH_RESULT : "found as"
+
+    ROUTE ||--o{ ROUTE_WAYPOINT : "contains"
+    ROUTE ||--o{ ROUTE_SEGMENT : "consists of"
+    PLACE |o--o{ ROUTE_WAYPOINT : "referenced by"
+    TRANSPORT_MODE ||--o{ ROUTE_SEGMENT : "used in"
+
+    USER_ROLE {
+        smallint id PK
+        text code UK
+        text name
+    }
+
+    APP_USER {
+        bigint id PK
+        text email UK "normalized lower(email)"
+        text password_hash "argon2id/bcrypt"
+        text display_name
+        smallint role_id FK
+        user_status status
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz last_login_at
+    }
+
+    USER_SESSION {
+        bigint id PK
+        bigint user_id FK
+        char(64) token_hash UK "SHA-256 of refresh token"
+        timestamptz expires_at
+        timestamptz created_at
+        timestamptz revoked_at
+        text user_agent
+        inet ip
+    }
+
+    CITY {
+        bigint id PK
+        text external_id UK "2GIS city_id / region_id"
+        text name
+        text region "WeatherAPI location.region"
+        text country "WeatherAPI location.country"
+        double latitude
+        double longitude
+        text timezone "WeatherAPI tz_id"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    CITY_ALIAS {
+        bigint city_id PK, FK
+        text alias PK
+        text locale_code PK "ru_RU / en_US"
+    }
+
+    PLACE {
+        bigint id PK
+        text external_id UK "2GIS item.id"
+        bigint city_id FK
+        text name "item.name"
+        text address "item.address_name"
+        text type "item.type"
+        double latitude "item.point.lat"
+        double longitude "item.point.lon"
+        jsonb raw "raw 2GIS item"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    ROUTE_TYPE {
+        smallint id PK
+        text code UK "car / pedestrian / bicycle / transit"
+        text name
+    }
+
+    TRANSPORT_MODE {
+        smallint id PK
+        text code UK "walk / car / metro / bus / tram / train / ferry / taxi"
+        text name
+    }
+
+    SAVED_SEARCH {
+        bigint id PK
+        bigint user_id FK
+        text name "UNIQUE with user_id"
+        text query_text "2GIS q"
+        smallint route_type_id FK
+        bigint origin_city_id FK
+        bigint destination_city_id FK
+        double origin_lat
+        double origin_lon
+        double destination_lat
+        double destination_lon
+        integer radius_m
+        text sort_code "distance / relevance"
+        text locale_code "ru_RU / en_US"
+        integer page_number
+        integer page_size
+        text[] fields "2GIS fields"
+        jsonb extra_params "type / region_id / city_id"
+        boolean is_favorite
+        timestamptz last_run_at
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    SEARCH_RUN {
+        bigint id PK
+        bigint user_id FK
+        bigint saved_search_id FK
+        search_status status
+        timestamptz started_at
+        timestamptz finished_at
+        integer result_count
+        text error_message
+    }
+
+    SEARCH_RESULT {
+        bigint search_run_id PK, FK
+        bigint place_id PK, FK
+        smallint rank
+        integer distance_m
+    }
+
+    API_REQUEST_LOG {
+        bigint id PK
+        bigint user_id FK
+        text method
+        text path
+        jsonb query_params
+        text provider "2gis / weatherapi / null"
+        smallint status_code
+        integer duration_ms
+        inet ip
+        text user_agent
+        text error_message
+        timestamptz created_at
+    }
+
+    ROUTE {
+        bigint id PK
+        bigint user_id FK
+        bigint saved_search_id FK
+        bigint search_run_id FK
+        smallint route_type_id FK
+        route_status status "draft / building / ready / failed / archived"
+        bigint origin_city_id FK
+        bigint destination_city_id FK
+        double origin_lat
+        double origin_lon
+        double destination_lat
+        double destination_lon
+        integer distance_m
+        integer duration_s
+        timestamptz departure_at
+        timestamptz arrival_at
+        smallint transfers
+        numeric fare_amount "numeric(10,2)"
+        jsonb geometry "GeoJSON LineString"
+        jsonb raw "raw router response"
+        timestamptz expires_at "TTL for active routes"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    ROUTE_WAYPOINT {
+        bigint route_id PK, FK
+        smallint seq PK
+        bigint city_id FK
+        bigint place_id FK
+        double latitude
+        double longitude
+    }
+
+    ROUTE_SEGMENT {
+        bigint route_id PK, FK
+        smallint seq PK
+        smallint transport_mode_id FK
+        double from_lat
+        double from_lon
+        double to_lat
+        double to_lon
+        integer distance_m
+        integer duration_s
+        text instruction
+        text street
+        jsonb geometry "segment GeoJSON"
+    }
+
+    WEATHER_CURRENT {
+        bigint city_id PK, FK
+        timestamptz observed_at "current.last_updated"
+        text local_time_label "location.localtime"
+        numeric temperature_c "numeric(5,2) current.temp_c"
+        numeric feelslike_c "numeric(5,2)"
+        smallint condition_code
+        text condition_text
+        text icon_url
+        numeric wind_kph "numeric(6,2)"
+        text wind_dir
+        smallint humidity
+        numeric precip_mm "numeric(6,2)"
+        timestamptz updated_at
+    }
+
+    WEATHER_DAILY {
+        bigint id PK
+        bigint city_id FK
+        date forecast_date "UNIQUE with city_id and source"
+        text source "weatherapi"
+        numeric temp_min_c "numeric(5,2)"
+        numeric temp_max_c "numeric(5,2)"
+        numeric temp_avg_c "numeric(5,2)"
+        numeric feelslike_min_c "numeric(5,2)"
+        numeric feelslike_max_c "numeric(5,2)"
+        numeric max_wind_kph "numeric(6,2)"
+        text wind_dir
+        smallint humidity
+        numeric precip_mm "numeric(6,2)"
+        smallint chance_of_rain
+        smallint chance_of_snow
+        smallint condition_code
+        text condition_text
+        text icon_url
+        smallint uv
+        time sunrise_local
+        time sunset_local
+        timestamptz fetched_at
+    }
+
+    EXTERNAL_API_CACHE {
+        char(64) cache_key PK "sha256 of provider endpoint params"
+        text provider "2gis / weatherapi"
+        jsonb payload
+        timestamptz expires_at
+        timestamptz created_at
+        bigint hit_count
+    }
+```
+
+## Что важно
+
+- `saved_search` хранит параметры 2ГИС (`q`, `radius`, `sort`, `page`, `page_size`, `locale`, `fields`) и пару координат `location = lon,lat`; города — в `city`.
+- `route` — маршруты, которые строятся сейчас (`status IN ('draft','building')`); точки — в `route_waypoint`, шаги с видом транспорта — в `route_segment`.
+- `weather_current` — текущая погода, `weather_daily` — по дням, уникальность `(city_id, forecast_date, source)`.
+- `api_request_log` — история обращений пользователя к API (метод, путь, параметры, статус, длительность); `search_run`/`search_result` — результаты поиска.
+- `external_api_cache` — кэш внешних API, без внешних связей.

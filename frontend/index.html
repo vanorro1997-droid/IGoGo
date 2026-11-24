@@ -176,6 +176,45 @@
 
       [hidden] { display: none !important; }
 
+      .auth-card { margin-bottom: 18px; }
+      .auth-card h2 { margin: 0 0 14px; font-size: 20px; }
+
+      .weather-card h2 { margin: 0 0 14px; font-size: 20px; }
+
+      .weather-main {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .weather-main img { display: block; }
+
+      .weather-temp { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; }
+
+      .weather-condition { font-size: 16px; color: var(--muted); }
+
+      .weather-place { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+
+      .weather-details {
+        display: flex;
+        gap: 10px 22px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+        font-size: 14px;
+        color: var(--muted);
+      }
+
+      .weather-details b { color: var(--text); font-weight: 600; }
+
+      .weather-error {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
       @media (max-width: 640px) {
         body { padding-top: 20px; }
         .grid { grid-template-columns: 1fr; }
@@ -188,9 +227,46 @@
       <header>
         <h1>Поиск по 2ГИС</h1>
         <p class="subtitle">
-          Введите параметры запроса к Places API. API-ключ хранится на сервере и в браузер не передаётся.
+          Поиск мест по Places API 2ГИС и текущая погода по вашему местоположению (WeatherAPI).
+          API-ключи хранятся на сервере и в браузер не передаются.
         </p>
       </header>
+
+      <section id="auth" class="card auth-card">
+        <h2>Вход / регистрация</h2>
+        <div class="grid">
+          <label class="field">
+            <span>Email</span>
+            <input id="auth-email" type="email" autocomplete="username" placeholder="user@example.com" />
+          </label>
+          <label class="field">
+            <span>Пароль</span>
+            <input id="auth-password" type="password" autocomplete="current-password" placeholder="Не менее 8 символов" />
+          </label>
+          <label class="field field-wide">
+            <span>Имя (только при регистрации)</span>
+            <input id="auth-name" type="text" autocomplete="name" placeholder="Необязательно" />
+          </label>
+        </div>
+        <div class="actions">
+          <button type="button" id="login-button">Войти</button>
+          <button type="button" id="register-button">Регистрация</button>
+          <button type="button" id="logout-button" hidden>Выйти</button>
+        </div>
+        <p id="auth-status" class="hint"></p>
+      </section>
+
+      <section id="weather" class="card weather-card" hidden>
+        <h2>Погода сейчас</h2>
+        <div class="weather-main">
+          <img id="weather-icon" alt="" width="64" height="64" />
+          <span id="weather-temp" class="weather-temp"></span>
+          <span id="weather-condition" class="weather-condition"></span>
+        </div>
+        <p id="weather-place" class="weather-place"></p>
+        <div id="weather-details" class="weather-details"></div>
+        <p id="weather-error" class="weather-error" hidden></p>
+      </section>
 
       <form id="search-form" class="card" novalidate>
         <div class="grid">
@@ -292,16 +368,135 @@
         const itemsEl = document.getElementById('items');
         const totalEl = document.getElementById('total');
         const jsonEl = document.getElementById('json');
+        const weatherEl = document.getElementById('weather');
+        const weatherIconEl = document.getElementById('weather-icon');
+        const weatherTempEl = document.getElementById('weather-temp');
+        const weatherConditionEl = document.getElementById('weather-condition');
+        const weatherPlaceEl = document.getElementById('weather-place');
+        const weatherDetailsEl = document.getElementById('weather-details');
+        const weatherErrorEl = document.getElementById('weather-error');
+
+        const authEmailEl = document.getElementById('auth-email');
+        const authPasswordEl = document.getElementById('auth-password');
+        const authNameEl = document.getElementById('auth-name');
+        const authStatusEl = document.getElementById('auth-status');
+        const loginButton = document.getElementById('login-button');
+        const registerButton = document.getElementById('register-button');
+        const logoutButton = document.getElementById('logout-button');
+        const TOKEN_KEY = 'igogo_token';
+
+        function getToken() {
+          return localStorage.getItem(TOKEN_KEY) || '';
+        }
+
+        function showAuthStatus(message) {
+          authStatusEl.textContent = message || '';
+        }
+
+        function applyAuthState() {
+          const authorized = Boolean(getToken());
+          loginButton.hidden = authorized;
+          registerButton.hidden = authorized;
+          logoutButton.hidden = !authorized;
+          authEmailEl.disabled = authorized;
+          authPasswordEl.disabled = authorized;
+          authNameEl.disabled = authorized;
+          if (!authorized) {
+            showAuthStatus('');
+          }
+        }
+
+        function authFetch(url, options) {
+          const opts = Object.assign({}, options || {});
+          opts.headers = new Headers(opts.headers || {});
+          const token = getToken();
+          if (token) {
+            opts.headers.set('Authorization', 'Bearer ' + token);
+          }
+          return fetch(url, opts);
+        }
+
+        async function postAuth(endpoint) {
+          const email = authEmailEl.value.trim();
+          const password = authPasswordEl.value;
+          if (!email || !password) {
+            showAuthStatus('Укажите email и пароль.');
+            return;
+          }
+
+          const body = { email: email, password: password };
+          if (endpoint.indexOf('/register') !== -1) {
+            const name = authNameEl.value.trim();
+            if (name) {
+              body.display_name = name;
+            }
+          }
+
+          showAuthStatus('Отправляем запрос…');
+          try {
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+            const text = await response.text();
+            let data = null;
+            try {
+              data = JSON.parse(text);
+            } catch (parseError) {
+              data = null;
+            }
+            if (!response.ok || !data || !data.token) {
+              showAuthStatus((data && data.error) || text || ('HTTP ' + response.status));
+              return;
+            }
+
+            localStorage.setItem(TOKEN_KEY, data.token);
+            applyAuthState();
+            showAuthStatus('Вы вошли как ' + data.user.email);
+            authPasswordEl.value = '';
+            lastWeatherLocation = null;
+            locateUser(false);
+          } catch (error) {
+            showAuthStatus('Не удалось войти: ' + error.message);
+          }
+        }
+
+        loginButton.addEventListener('click', function () {
+          postAuth('/api/auth/login');
+        });
+
+        registerButton.addEventListener('click', function () {
+          postAuth('/api/auth/register');
+        });
+
+        logoutButton.addEventListener('click', async function () {
+          try {
+            await authFetch('/api/auth/logout', { method: 'POST' });
+          } catch (error) {
+            // Даже при ошибке сети локальный токен нужно удалить.
+          }
+          localStorage.removeItem(TOKEN_KEY);
+          applyAuthState();
+          showAuthStatus('Вы вышли.');
+          clearWeather();
+          clearOutput();
+        });
 
         let currentController = null;
         let locatingPromise = null;
+        let weatherController = null;
+        let lastWeatherLocation = null;
 
         locateButton.addEventListener('click', function () {
           locateUser(true);
         });
 
-        // Detect the user's location on page load.
-        locateUser(false);
+        // Detect the user's location on page load only for an authorized user.
+        applyAuthState();
+        if (getToken()) {
+          locateUser(false);
+        }
 
         form.addEventListener('submit', async function (event) {
           event.preventDefault();
@@ -334,6 +529,9 @@
             params.set('location', location);
           }
 
+          // Refresh the weather card for the location being searched.
+          loadWeather(params.get('location'));
+
           if (currentController) {
             currentController.abort();
           }
@@ -346,7 +544,7 @@
           setStatus('Запрос к 2ГИС…');
 
           try {
-            const response = await fetch('/api/2gis/search?' + params.toString(), {
+            const response = await authFetch('/api/2gis/search?' + params.toString(), {
               signal: controller.signal,
               headers: { Accept: 'application/json' },
             });
@@ -358,6 +556,12 @@
               payload = JSON.parse(text);
             } catch (parseError) {
               payload = null;
+            }
+
+            if (response.status === 401) {
+              showError('401: Сначала войдите в аккаунт.');
+              showAuthStatus('Для поиска нужно войти.');
+              return;
             }
 
             if (!response.ok) {
@@ -397,6 +601,7 @@
           }
           form.reset();
           clearOutput();
+          clearWeather();
           setStatus('');
           setLoading(false);
           form.elements.q.focus();
@@ -427,6 +632,7 @@
                 const location = coords.longitude.toFixed(6) + ',' + coords.latitude.toFixed(6);
                 locationInput.value = location;
                 setStatus('Местоположение определено: ' + location);
+                loadWeather(location);
                 resolve(location);
               },
               function (error) {
@@ -463,6 +669,145 @@
             default:
               return 'Не удалось определить местоположение.';
           }
+        }
+
+        function loadWeather(location) {
+          if (!location || location === lastWeatherLocation) {
+            return;
+          }
+          lastWeatherLocation = location;
+
+          if (weatherController) {
+            weatherController.abort();
+          }
+          const controller = new AbortController();
+          weatherController = controller;
+
+          weatherErrorEl.hidden = true;
+          weatherErrorEl.textContent = '';
+          weatherEl.hidden = false;
+          weatherTempEl.textContent = '…';
+          weatherConditionEl.textContent = 'Загружаем погоду…';
+          weatherPlaceEl.textContent = '';
+          weatherDetailsEl.replaceChildren();
+          weatherIconEl.removeAttribute('src');
+
+          authFetch('/api/weather?location=' + encodeURIComponent(location), {
+            signal: controller.signal,
+            headers: { Accept: 'application/json' },
+          })
+            .then(function (response) {
+              return response.text().then(function (text) {
+                let payload = null;
+                try {
+                  payload = JSON.parse(text);
+                } catch (parseError) {
+                  payload = null;
+                }
+                return { ok: response.ok, status: response.status, payload: payload, text: text };
+              });
+            })
+            .then(function (result) {
+              if (controller.signal.aborted) {
+                return;
+              }
+              if (result.status === 401) {
+                showAuthStatus('Для погоды нужно войти.');
+                return;
+              }
+              if (!result.ok || !result.payload || result.payload.error) {
+                const message = result.payload && result.payload.error
+                  ? (typeof result.payload.error === 'string'
+                      ? result.payload.error
+                      : result.payload.error.message || JSON.stringify(result.payload.error))
+                  : (result.text || ('HTTP ' + result.status));
+                showWeatherError('Погода недоступна: ' + message);
+                return;
+              }
+              renderWeather(result.payload);
+            })
+            .catch(function (error) {
+              if (error.name === 'AbortError') {
+                return;
+              }
+              showWeatherError('Погода недоступна: ' + error.message);
+            });
+        }
+
+        function showWeatherError(message) {
+          weatherTempEl.textContent = '';
+          weatherConditionEl.textContent = '';
+          weatherPlaceEl.textContent = '';
+          weatherDetailsEl.replaceChildren();
+          weatherIconEl.removeAttribute('src');
+          weatherErrorEl.textContent = message;
+          weatherErrorEl.hidden = false;
+        }
+
+        function renderWeather(payload) {
+          const location = payload.location || {};
+          const current = payload.current || {};
+          const condition = current.condition || {};
+
+          const place = [location.name, location.region, location.country]
+            .filter(Boolean)
+            .join(', ');
+          weatherPlaceEl.textContent = place || '';
+
+          weatherTempEl.textContent =
+            typeof current.temp_c === 'number' ? Math.round(current.temp_c) + ' °C' : '';
+
+          weatherConditionEl.textContent = condition.text || '';
+
+          if (condition.icon) {
+            weatherIconEl.src = condition.icon.startsWith('//')
+              ? 'https:' + condition.icon
+              : condition.icon;
+            weatherIconEl.alt = condition.text || '';
+          } else {
+            weatherIconEl.removeAttribute('src');
+          }
+
+          const details = [
+            ['Ощущается', typeof current.feelslike_c === 'number' ? Math.round(current.feelslike_c) + ' °C' : null],
+            ['Ветер', typeof current.wind_kph === 'number' ? Math.round(current.wind_kph) + ' км/ч' + (current.wind_dir ? ' (' + current.wind_dir + ')' : '') : null],
+            ['Влажность', typeof current.humidity === 'number' ? current.humidity + '%' : null],
+            ['Осадки', typeof current.precip_mm === 'number' ? current.precip_mm + ' мм' : null],
+            ['Местное время', location.localtime || null],
+          ];
+
+          weatherDetailsEl.replaceChildren();
+          details.forEach(function (pair) {
+            if (pair[1] === null) {
+              return;
+            }
+            const item = document.createElement('span');
+            const label = document.createElement('span');
+            label.textContent = pair[0] + ': ';
+            const value = document.createElement('b');
+            value.textContent = pair[1];
+            item.appendChild(label);
+            item.appendChild(value);
+            weatherDetailsEl.appendChild(item);
+          });
+
+          weatherErrorEl.hidden = true;
+        }
+
+        function clearWeather() {
+          lastWeatherLocation = null;
+          if (weatherController) {
+            weatherController.abort();
+            weatherController = null;
+          }
+          weatherEl.hidden = true;
+          weatherErrorEl.hidden = true;
+          weatherErrorEl.textContent = '';
+          weatherTempEl.textContent = '';
+          weatherConditionEl.textContent = '';
+          weatherPlaceEl.textContent = '';
+          weatherDetailsEl.replaceChildren();
+          weatherIconEl.removeAttribute('src');
         }
 
         function setLoading(loading) {

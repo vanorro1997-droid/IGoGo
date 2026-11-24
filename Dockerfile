@@ -1,17 +1,9 @@
-# Stage 1: Final runtime image with everything
-FROM alpine:3.18
-WORKDIR /app
-
-# Install ca-certificates for HTTPS
-RUN apk add --no-cache ca-certificates
-
-# Copy the Go API binary
-COPY main.go /app/main.go
-
-# Copy build tools to compile Go
+# Stage 1: build the Go API
 FROM golang:1.26-alpine AS builder
 WORKDIR /app
-COPY main.go go.mod* ./
+COPY go.mod go.sum ./
+RUN go mod download
+COPY *.go ./
 RUN CGO_ENABLED=0 GOOS=linux go build -o api .
 
 # Final runtime stage
@@ -22,9 +14,10 @@ RUN apk add --no-cache ca-certificates
 # Copy Go binary
 COPY --from=builder /app/api ./api
 
-# Create frontend directory and copy HTML
-RUN mkdir -p frontend
+# Copy frontend and schema (schema is also mounted by docker-compose)
+RUN mkdir -p frontend db
 COPY frontend/index.html frontend/
+COPY db/schema.sql db/
 
 # Expose port 8081
 EXPOSE 8081
