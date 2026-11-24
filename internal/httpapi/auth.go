@@ -1,4 +1,4 @@
-package main
+package httpapi
 
 import (
 	"context"
@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vanorro1997-droid/IGoGo/internal/storage"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -32,11 +33,11 @@ var dummyPasswordHash = func() []byte {
 }()
 
 type authService struct {
-	store      *Store
+	store      *storage.Store
 	sessionTTL time.Duration
 }
 
-func newAuthService(store *Store) *authService {
+func newAuthService(store *storage.Store) *authService {
 	hours := 168 // 7 дней по умолчанию
 	if v := strings.TrimSpace(os.Getenv("SESSION_TTL_HOURS")); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
@@ -44,12 +45,6 @@ func newAuthService(store *Store) *authService {
 		}
 	}
 	return &authService{store: store, sessionTTL: time.Duration(hours) * time.Hour}
-}
-
-func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
 }
 
 func decodeJSONBody(r *http.Request, dst any) error {
@@ -85,8 +80,8 @@ func hashToken(token string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func userFromContext(ctx context.Context) (User, bool) {
-	user, ok := ctx.Value(userContextKey).(User)
+func userFromContext(ctx context.Context) (storage.User, bool) {
+	user, ok := ctx.Value(userContextKey).(storage.User)
 	return user, ok
 }
 
@@ -95,7 +90,7 @@ func sessionHashFromContext(ctx context.Context) (string, bool) {
 	return hash, ok
 }
 
-func (a *authService) authResponse(w http.ResponseWriter, status int, user User, token string, expiresAt time.Time) {
+func (a *authService) authResponse(w http.ResponseWriter, status int, user storage.User, token string, expiresAt time.Time) {
 	writeJSON(w, status, map[string]any{
 		"user":       user,
 		"token":      token,
@@ -143,7 +138,7 @@ func (a *authService) registerHandler(w http.ResponseWriter, r *http.Request) {
 
 	user, err := a.store.CreateUser(ctx, email, string(passwordHash), strings.TrimSpace(req.DisplayName))
 	if err != nil {
-		if isUniqueViolation(err) {
+		if storage.IsUniqueViolation(err) {
 			writeJSONError(w, http.StatusConflict, "email already registered")
 			return
 		}

@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"context"
@@ -74,7 +74,7 @@ func dbDSN() string {
 	return u.String()
 }
 
-func openStore() (*Store, error) {
+func OpenStore() (*Store, error) {
 	db, err := sql.Open("pgx", dbDSN())
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
@@ -96,7 +96,7 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-func isUniqueViolation(err error) bool {
+func IsUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }

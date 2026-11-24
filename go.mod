@@ -1,9 +1,11 @@
 module github.com/vanorro1997-droid/IGoGo
 
-go 1.26.0
+go 1.26.5
 
 require (
 	github.com/jackc/pgx/v5 v5.13.0
+	github.com/joho/godotenv v1.5.1
+	github.com/zendev-sh/goai v0.11.0
 	golang.org/x/crypto v0.59.0
 )
 
