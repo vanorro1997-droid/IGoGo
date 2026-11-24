@@ -3,26 +3,22 @@ package transport
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
 
 // TestYandexIntegration_RealAPI tests the Yandex provider with real API
-// Set YANDEX_API_KEY environment variable to run this test
+// Set YANDEX_RASP_API_KEY (or the legacy YANDEX_API_KEY) to run live tests.
 func TestYandexIntegration_RealAPI(t *testing.T) {
-	apiKey := os.Getenv("YANDEX_API_KEY")
-	if apiKey == "" {
-		t.Skip("YANDEX_API_KEY not set, skipping real API test")
-	}
-
-	t.Logf("Testing with API key: %s...\n", apiKey[:8])
+	apiKey := yandexIntegrationAPIKey(t)
 
 	provider := NewYandexStationProvider(apiKey)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	// Test with Moscow coordinates
-	result, metadata, err := provider.SearchNearby(ctx, 55.7558, 37.6173, 1000)
+	result, metadata, err := provider.SearchNearby(ctx, 55.7558, 37.6173, 10000)
 	if err != nil {
 		t.Fatalf("SearchNearby failed: %v", err)
 	}
@@ -47,17 +43,14 @@ func TestYandexIntegration_RealAPI(t *testing.T) {
 
 // TestYandexIntegration_GetStationByID tests getting a specific station
 func TestYandexIntegration_GetStationByID(t *testing.T) {
-	apiKey := os.Getenv("YANDEX_API_KEY")
-	if apiKey == "" {
-		t.Skip("YANDEX_API_KEY not set, skipping real API test")
-	}
+	apiKey := yandexIntegrationAPIKey(t)
 
 	provider := NewYandexStationProvider(apiKey)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	// First get nearby stations
-	result, _, err := provider.SearchNearby(ctx, 55.7558, 37.6173, 1000)
+	result, _, err := provider.SearchNearby(ctx, 55.7558, 37.6173, 10000)
 	if err != nil {
 		t.Fatalf("SearchNearby failed: %v", err)
 	}
@@ -72,8 +65,7 @@ func TestYandexIntegration_GetStationByID(t *testing.T) {
 
 	station, metadata, err := provider.GetStationByID(ctx, stationID)
 	if err != nil {
-		t.Logf("Warning: GetStationByID failed: %v (this might be expected depending on API)\n", err)
-		return
+		t.Fatalf("GetStationByID failed: %v", err)
 	}
 
 	if station == nil {
@@ -89,10 +81,7 @@ func TestYandexIntegration_GetStationByID(t *testing.T) {
 
 // TestYandexIntegration_SearchRoutes tests route searching
 func TestYandexIntegration_SearchRoutes(t *testing.T) {
-	apiKey := os.Getenv("YANDEX_API_KEY")
-	if apiKey == "" {
-		t.Skip("YANDEX_API_KEY not set, skipping real API test")
-	}
+	apiKey := yandexIntegrationAPIKey(t)
 
 	provider := NewYandexTimetableProvider(apiKey)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -100,12 +89,12 @@ func TestYandexIntegration_SearchRoutes(t *testing.T) {
 
 	// Use typical station IDs (these might vary based on API)
 	from := &Station{
-		ExternalID: "c213",        // Moscow
+		ExternalID: "c213", // Moscow
 		Name:       "Moscow",
 		Provider:   "yandex",
 	}
 	to := &Station{
-		ExternalID: "c54",         // Saint Petersburg
+		ExternalID: "c54", // Saint Petersburg
 		Name:       "Saint Petersburg",
 		Provider:   "yandex",
 	}
@@ -117,13 +106,15 @@ func TestYandexIntegration_SearchRoutes(t *testing.T) {
 
 	result, metadata, err := provider.SearchRoutes(ctx, from, to, searchDate, earliestDeparture, "Europe/Moscow")
 	if err != nil {
-		t.Logf("SearchRoutes error: %v\n", err)
-		// This is expected if the station IDs or date are invalid
-		return
+		t.Fatalf("SearchRoutes failed: %v", err)
 	}
 
 	if metadata == nil || !metadata.IsReal {
 		t.Error("Expected real metadata")
+	}
+
+	if result == nil || len(result.Routes) == 0 {
+		t.Fatal("Expected scheduled routes for the Moscow — Saint Petersburg corridor")
 	}
 
 	if result != nil {
@@ -146,6 +137,7 @@ func TestYandexIntegration_SearchRoutes(t *testing.T) {
 
 // TestYandexIntegration_APIKeyValidation tests API key validation
 func TestYandexIntegration_APIKeyValidation(t *testing.T) {
+	yandexIntegrationAPIKey(t) // Invalid-key requests also require opting into live tests.
 	invalidKey := "invalid-key-12345"
 	provider := NewYandexStationProvider(invalidKey)
 
@@ -158,6 +150,18 @@ func TestYandexIntegration_APIKeyValidation(t *testing.T) {
 	}
 
 	t.Logf("Got expected error: %v\n", err)
+}
+
+func yandexIntegrationAPIKey(t *testing.T) string {
+	t.Helper()
+	apiKey := strings.TrimSpace(os.Getenv("YANDEX_RASP_API_KEY"))
+	if apiKey == "" {
+		apiKey = strings.TrimSpace(os.Getenv("YANDEX_API_KEY"))
+	}
+	if apiKey == "" {
+		t.Skip("YANDEX_RASP_API_KEY not set, skipping real API test")
+	}
+	return apiKey
 }
 
 // min returns the minimum of two integers

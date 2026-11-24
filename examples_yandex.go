@@ -12,8 +12,11 @@ import (
 // Example of how to use Yandex provider with the API key
 func demonstrateYandexIntegration() {
 	apiKey := os.Getenv("YANDEX_API_KEY")
+	if value := os.Getenv("YANDEX_RASP_API_KEY"); value != "" {
+		apiKey = value
+	}
 	if apiKey == "" {
-		log.Println("YANDEX_API_KEY environment variable not set")
+		log.Println("YANDEX_RASP_API_KEY environment variable not set")
 		return
 	}
 
@@ -39,7 +42,7 @@ func demonstrateYandexIntegration() {
 
 	// Example 2: Get station by ID
 	log.Println("\n=== Example 2: Get station by ID ===")
-	if len(result.Stations) > 0 {
+	if result != nil && len(result.Stations) > 0 {
 		stationID := result.Stations[0].ExternalID
 		station, metadata, err := stationProvider.GetStationByID(ctx, stationID)
 		if err != nil {
@@ -52,7 +55,7 @@ func demonstrateYandexIntegration() {
 
 	// Example 3: Search routes
 	log.Println("\n=== Example 3: Search routes ===")
-	if len(result.Stations) >= 2 {
+	if result != nil && len(result.Stations) >= 2 {
 		from := result.Stations[0]
 		to := result.Stations[1]
 

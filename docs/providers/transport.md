@@ -102,6 +102,20 @@ timetableProvider := NewMockTimetableProvider()
 - Routes at different times
 - Timezone support
 
+## Yandex Provider
+
+The application selects Yandex station and timetable providers when
+`TRANSPORT_PROVIDER=yandex` and `YANDEX_RASP_API_KEY` is configured. The legacy
+`YANDEX_API_KEY` remains supported. `mock` is still the default.
+
+Both providers are wired to the existing `/api/transport/stations` and
+`/api/transport/routes` endpoints. Yandex covers trains, suburban trains and
+intercity buses, not urban subway or tram schedules. For Yandex, `IsAvailable`
+means the journey exists in the timetable, not that seats can be booked.
+
+See [the integration guide](../../YANDEX_INTEGRATION.md) and
+[the environment template](../../.env.example) for configuration and examples.
+
 ## Implementing Real Providers
 
 When integrating a real transport data source:

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -35,10 +36,27 @@ func newHandler(cfg config.Config, store *storage.Store) (http.Handler, error) {
 		return nil, fmt.Errorf("unsupported weather provider: %s", cfg.WeatherProvider)
 	}
 
+	var stationProvider transport.StationProvider
+	var timetableProvider transport.TimetableProvider
+	switch cfg.TransportProvider {
+	case "", "mock":
+		stationProvider = transport.NewMockStationProvider()
+		timetableProvider = transport.NewMockTimetableProvider()
+	case "yandex":
+		apiKey := strings.TrimSpace(cfg.YandexRaspAPIKey)
+		if apiKey == "" {
+			return nil, fmt.Errorf("YANDEX_RASP_API_KEY is required when TRANSPORT_PROVIDER=yandex")
+		}
+		stationProvider = transport.NewYandexStationProvider(apiKey)
+		timetableProvider = transport.NewYandexTimetableProvider(apiKey)
+	default:
+		return nil, fmt.Errorf("unsupported transport provider: %s", cfg.TransportProvider)
+	}
+
 	deps := httpapi.Dependencies{
 		Weather:   weatherProvider,
-		Stations:  transport.NewMockStationProvider(),
-		Timetable: transport.NewMockTimetableProvider(),
+		Stations:  stationProvider,
+		Timetable: timetableProvider,
 		Store:     store,
 	}
 	if cfg.LLMEnabled {
@@ -83,8 +101,8 @@ func Run() error {
 
 	errorsCh := make(chan error, 1)
 	go func() { errorsCh <- server.ListenAndServe() }()
-	log.Printf("Server starting on port %s (weather=%s, transport=mock, llm_enabled=%t, database_enabled=%t)",
-		cfg.Port, cfg.WeatherProvider, cfg.LLMEnabled, cfg.DatabaseEnabled)
+	log.Printf("Server starting on port %s (weather=%s, transport=%s, llm_enabled=%t, database_enabled=%t)",
+		cfg.Port, cfg.WeatherProvider, cfg.TransportProvider, cfg.LLMEnabled, cfg.DatabaseEnabled)
 
 	select {
 	case err := <-errorsCh:

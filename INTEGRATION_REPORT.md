@@ -5,9 +5,14 @@
 Яндекс Расписание API успешно интегрирован в проект IGoGo.
 
 ### API Ключ
-```
-c7e69f5a-84d0-496f-b1ec-38c184f1b26e
-```
+Получите собственный ключ на https://yandex.ru/dev/rasp/ и задайте
+`TRANSPORT_PROVIDER=yandex`, `YANDEX_RASP_API_KEY` в окружении или локальном `.env`.
+Ранее опубликованный тестовый ключ удалён из примеров и документации;
+его следует перевыпустить, поскольку он остаётся в истории Git.
+
+Провайдер выбирается в `internal/config` и подключается в `internal/app`
+к существующему HTTP API. По умолчанию сохраняется mock, PostgreSQL и LLM
+остаются необязательными. Полная конфигурация приведена в `.env.example`.
 
 ## 📋 Реализованные компоненты
 
@@ -25,9 +30,8 @@ c7e69f5a-84d0-496f-b1ec-38c184f1b26e
   
 - ✅ `GetStationByID(externalID)` - получение информации о конкретной станции
   - Поиск по коду станции
-  - Возвращает детальную информацию о станции
-
-- ✅ `SupportsTransport()` - проверка поддерживаемых типов транспорта
+   - Использует объект `station` из `/v3.0/schedule/`; координаты доступны
+     в поиске ближайших станций, но могут отсутствовать в расписании станции
 
 #### YandexTimetableProvider
 - ✅ `SearchRoutes(from, to, date, earliestDeparture, tz)` - поиск маршрутов
@@ -38,8 +42,8 @@ c7e69f5a-84d0-496f-b1ec-38c184f1b26e
 - ✅ `SupportsTransport()` - проверка поддержки типов транспорта
   - Поезда ✅
   - Автобусы ✅
-  - Метро ✅
-  - Трамваи ✅
+   - Пригородные автобусы ✅
+   - Городские метро и трамваи ❌
 
 ## ✅ Тесты
 
@@ -52,7 +56,10 @@ c7e69f5a-84d0-496f-b1ec-38c184f1b26e
 ✅ TestYandexProvider_Names                       - PASS
 ```
 
-Результат: **5/5 тестов пройдены** ✅
+Базовые тесты и регрессии пройдены: официальный формат ответов, UTC-времена,
+локальная дата поездки, фильтрация по времени, отмена контекста и безопасные ошибки.
+Также проверены конфигурация, совместимость старых имён переменных и подключение
+Яндекса к HTTP API приложения.
 
 ### Интеграционные тесты (`internal/providers/transport/yandex_integration_test.go`)
 - `TestYandexIntegration_RealAPI` - тест с реальным API
@@ -62,8 +69,8 @@ c7e69f5a-84d0-496f-b1ec-38c184f1b26e
 
 Запуск интеграционных тестов:
 ```bash
-export YANDEX_API_KEY=c7e69f5a-84d0-496f-b1ec-38c184f1b26e
-go test ./internal/providers/transport -v -run TestYandexIntegration -timeout 20s
+export YANDEX_RASP_API_KEY=your_yandex_rasp_api_key
+go test ./internal/providers/transport -v -run TestYandexIntegration -timeout 90s
 ```
 
 ## 🔧 Использование в коде
@@ -72,7 +79,7 @@ go test ./internal/providers/transport -v -run TestYandexIntegration -timeout 20
 ```go
 import "github.com/vanorro1997-droid/IGoGo/internal/providers/transport"
 
-apiKey := os.Getenv("YANDEX_API_KEY")
+apiKey := os.Getenv("YANDEX_RASP_API_KEY")
 stationProvider := transport.NewYandexStationProvider(apiKey)
 timetableProvider := transport.NewYandexTimetableProvider(apiKey)
 ```
@@ -122,11 +129,11 @@ for _, route := range routes.Routes {
 | Endpoint | Метод | Описание |
 |----------|-------|---------|
 | `/v3.0/nearest_stations/` | GET | Ближайшие станции по координатам |
-| `/v3.0/station/{code}/` | GET | Информация о конкретной станции |
+| `/v3.0/schedule/` | GET | Информация о станции внутри её расписания |
 | `/v3.0/search/` | GET | Поиск маршрутов между станциями |
 
 Параметры:
-- `apikey` - API ключ для аутентификации
+- `Authorization` (заголовок) - API ключ для аутентификации
 - `lat` - широта (latitude)
 - `lng` - долгота (longitude) *важно: lng, не lon*
 - `distance` - расстояние в км (максимум 50)
@@ -134,6 +141,8 @@ for _, route := range routes.Routes {
 - `from` - код станции отправления
 - `to` - код станции прибытия
 - `date` - дата поиска (YYYY-MM-DD)
+- `station` - код станции для запроса расписания по станции
+- `result_timezone` - часовой пояс ответа расписания
 
 ## 📁 Файлы проекта
 
@@ -150,17 +159,19 @@ for _, route := range routes.Routes {
 
 ### Способ 1: Переменная окружения
 ```bash
-export YANDEX_API_KEY=c7e69f5a-84d0-496f-b1ec-38c184f1b26e
+export TRANSPORT_PROVIDER=yandex
+export YANDEX_RASP_API_KEY=your_yandex_rasp_api_key
 ```
 
 ### Способ 2: .env файл
 ```
-YANDEX_API_KEY=c7e69f5a-84d0-496f-b1ec-38c184f1b26e
+TRANSPORT_PROVIDER=yandex
+YANDEX_RASP_API_KEY=your_yandex_rasp_api_key
 ```
 
 ### Способ 3: В коде
 ```go
-provider := transport.NewYandexStationProvider("c7e69f5a-84d0-496f-b1ec-38c184f1b26e")
+provider := transport.NewYandexStationProvider(apiKey)
 ```
 
 ## 🔍 Поддерживаемые типы транспорта
@@ -169,9 +180,9 @@ provider := transport.NewYandexStationProvider("c7e69f5a-84d0-496f-b1ec-38c184f1
 |-----|-----------|----------|
 | Поезда (электрички) | ✅ | train |
 | Автобусы | ✅ | bus |
-| Метро | ✅ | subway |
-| Трамваи | ✅ | tramway |
-| Пригородный автобус | ❌ | interurban |
+| Метро | ❌ | subway |
+| Трамваи | ❌ | tramway |
+| Пригородный автобус | ✅ | interurban |
 
 ## 📊 Обработка ошибок
 
@@ -190,9 +201,13 @@ provider := transport.NewYandexStationProvider("c7e69f5a-84d0-496f-b1ec-38c184f1
 
 Запуск примера:
 ```bash
-export YANDEX_API_KEY=c7e69f5a-84d0-496f-b1ec-38c184f1b26e
-go run main.go examples_yandex.go
+export TRANSPORT_PROVIDER=yandex
+export YANDEX_RASP_API_KEY=your_yandex_rasp_api_key
+go run .
 ```
+
+Приложение обслуживает `/api/transport/stations` и `/api/transport/routes`.
+Функция `demonstrateYandexIntegration()` остаётся примером прямой работы с провайдерами.
 
 ## ✨ Возможности расширения
 
@@ -210,4 +225,6 @@ go run main.go examples_yandex.go
 ✅ API ключ протестирован и функционален
 ✅ Документация полная и готова к использованию
 
-Проект готов к использованию Яндекс Расписания для поиска станций и маршрутов общественного транспорта!
+Проект готов к использованию Яндекс Расписаний для поиска станций и маршрутов
+междугороднего транспорта. `IsAvailable` означает наличие рейса в расписании:
+API не предоставляет число свободных мест и не подтверждает возможность бронирования.

@@ -12,12 +12,14 @@ import (
 )
 
 type Config struct {
-	Port            string
-	FrontendDir     string
-	WeatherProvider string
-	DatabaseEnabled bool
-	LLMEnabled      bool
-	LLM             llm.Config
+	Port              string
+	FrontendDir       string
+	WeatherProvider   string
+	TransportProvider string
+	YandexRaspAPIKey  string
+	DatabaseEnabled   bool
+	LLMEnabled        bool
+	LLM               llm.Config
 }
 
 // Load загружает необязательный .env, не переопределяя переменные окружения.
@@ -27,17 +29,25 @@ func Load() (Config, error) {
 	}
 
 	cfg := Config{
-		Port:            strings.TrimSpace(envOr("PORT", "8080")),
-		FrontendDir:     envOr("FRONTEND_DIR", "frontend"),
-		WeatherProvider: strings.ToLower(strings.TrimSpace(envOr("WEATHER_PROVIDER", "mock"))),
+		Port:              strings.TrimSpace(envOr("HTTP_PORT", envOr("PORT", "8080"))),
+		FrontendDir:       envOr("FRONTEND_DIR", "frontend"),
+		WeatherProvider:   strings.ToLower(strings.TrimSpace(envOr("WEATHER_PROVIDER", "mock"))),
+		TransportProvider: strings.ToLower(strings.TrimSpace(envOr("TRANSPORT_PROVIDER", "mock"))),
+		YandexRaspAPIKey:  strings.TrimSpace(envOr("YANDEX_RASP_API_KEY", os.Getenv("YANDEX_API_KEY"))),
 	}
 
 	port, err := strconv.Atoi(cfg.Port)
 	if err != nil || port < 1 || port > 65535 {
-		return Config{}, fmt.Errorf("PORT must be an integer between 1 and 65535")
+		return Config{}, fmt.Errorf("HTTP_PORT (or PORT) must be an integer between 1 and 65535")
 	}
 	if cfg.WeatherProvider != "mock" && cfg.WeatherProvider != "open-meteo" {
 		return Config{}, fmt.Errorf("WEATHER_PROVIDER must be mock or open-meteo")
+	}
+	if cfg.TransportProvider != "mock" && cfg.TransportProvider != "yandex" {
+		return Config{}, fmt.Errorf("TRANSPORT_PROVIDER must be mock or yandex")
+	}
+	if cfg.TransportProvider == "yandex" && cfg.YandexRaspAPIKey == "" {
+		return Config{}, fmt.Errorf("YANDEX_RASP_API_KEY is required when TRANSPORT_PROVIDER=yandex")
 	}
 	cfg.DatabaseEnabled, err = strconv.ParseBool(strings.TrimSpace(envOr("DB_ENABLED", strconv.FormatBool(databaseConfigured()))))
 	if err != nil {

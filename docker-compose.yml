@@ -3,16 +3,16 @@ services:
     image: postgres:15-alpine
     container_name: igogo-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: igogo
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-igogo}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,18 +23,32 @@ services:
       dockerfile: Dockerfile
     container_name: igogo-app
     ports:
-      - "8081:8081"
+      - "${HTTP_PORT:-${PORT:-8081}}:${HTTP_PORT:-${PORT:-8081}}"
     environment:
-      PORT: 8081
+      HTTP_PORT: ${HTTP_PORT:-${PORT:-8081}}
+      FRONTEND_DIR: ${FRONTEND_DIR:-frontend}
+      WEATHER_PROVIDER: ${WEATHER_PROVIDER:-mock}
+      TRANSPORT_PROVIDER: ${TRANSPORT_PROVIDER:-mock}
+      YANDEX_RASP_API_KEY: ${YANDEX_RASP_API_KEY:-${YANDEX_API_KEY:-}}
+      DB_ENABLED: ${DB_ENABLED:-true}
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: igogo
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-igogo}
       TWOGIS_API_KEY: ${TWOGIS_API_KEY:-}
       WEATHERAPI_KEY: ${WEATHERAPI_KEY:-}
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-168}
-      DB_SSLMODE: disable
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      LLM_ENABLED: ${LLM_ENABLED:-false}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      CLOUDFLARE_MODEL: ${CLOUDFLARE_MODEL:-}
+      CLOUDFLARE_SYSTEM_PROMPT: ${CLOUDFLARE_SYSTEM_PROMPT:-}
+      CLOUDFLARE_PROXY: ${CLOUDFLARE_PROXY:-}
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,postgres}
     depends_on:
       postgres:
         condition: service_healthy

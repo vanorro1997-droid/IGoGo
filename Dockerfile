@@ -10,7 +10,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o api .
 # Final runtime stage
 FROM alpine:3.18
 WORKDIR /app
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates tzdata
 
 # Copy Go binary
 COPY --from=builder /app/api ./api
