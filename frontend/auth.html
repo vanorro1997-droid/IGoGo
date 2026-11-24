@@ -319,7 +319,7 @@
             setStatus('Не удалось выполнить запрос: ' + error.message, 'error');
           } finally {
             submitButton.disabled = false;
-            setMode(mode);
+            submitButton.textContent = mode === 'register' ? 'Создать аккаунт' : 'Войти';
           }
         });
 
